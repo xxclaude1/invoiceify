@@ -1,6 +1,12 @@
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
+import {
+  collectFingerprint,
+  generateFingerprintHash,
+  collectReferralData,
+  BehavioralTracker,
+} from "./collector";
 
 interface FieldChange {
   fieldName: string;
@@ -12,6 +18,18 @@ export function useSessionLogger() {
   const pendingFieldsRef = useRef<FieldChange[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const creatingRef = useRef(false);
+  const trackerRef = useRef<BehavioralTracker | null>(null);
+  const behavioralTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Initialize behavioral tracker on mount
+  useEffect(() => {
+    trackerRef.current = new BehavioralTracker();
+    return () => {
+      trackerRef.current?.destroy();
+      trackerRef.current = null;
+      if (behavioralTimerRef.current) clearInterval(behavioralTimerRef.current);
+    };
+  }, []);
 
   // Create a session on first interaction
   const ensureSession = useCallback(async (documentType?: string | null) => {
@@ -28,6 +46,11 @@ export function useSessionLogger() {
         platform: navigator.platform,
       };
 
+      // Collect fingerprint and referral data
+      const fingerprint = await collectFingerprint();
+      const fingerprintHash = await generateFingerprintHash(fingerprint);
+      const referralData = collectReferralData();
+
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,12 +59,21 @@ export function useSessionLogger() {
           deviceInfo,
           referralSource: document.referrer || undefined,
           pageUrl: window.location.href,
+          fingerprint,
+          fingerprintHash,
+          preferredLangs: navigator.languages.join(", "),
+          ...referralData,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
         sessionIdRef.current = data.sessionId;
+
+        // Start periodic behavioral snapshot uploads every 30s
+        behavioralTimerRef.current = setInterval(() => {
+          sendBehavioralSnapshot();
+        }, 30000);
       }
     } catch (e) {
       console.error("Failed to create session:", e);
@@ -50,6 +82,40 @@ export function useSessionLogger() {
     }
 
     return sessionIdRef.current;
+  }, []);
+
+  // Send behavioral snapshot to server
+  const sendBehavioralSnapshot = useCallback(async () => {
+    if (!sessionIdRef.current || !trackerRef.current) return;
+    const snapshot = trackerRef.current.getSnapshot();
+    try {
+      await fetch("/api/sessions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionIdRef.current,
+          behavioral: {
+            fieldTimings: snapshot.fieldTimings,
+            editCounts: snapshot.editCounts,
+            fieldOrder: snapshot.fieldOrder,
+            pasteEvents: snapshot.pasteEvents,
+            typingSpeeds: snapshot.typingSpeeds,
+            scrollDepth: snapshot.scrollDepth,
+            tabSwitches: snapshot.tabSwitches,
+            rageClicks: snapshot.rageClicks,
+            copyEvents: snapshot.copyEvents,
+            rightClickEvents: snapshot.rightClickEvents,
+            validationErrors: snapshot.validationErrors,
+            duration: snapshot.duration,
+            pageLoadTime: snapshot.pageLoadTime,
+          },
+          mouseHeatmap: snapshot.mouseHeatmap,
+          clickMap: snapshot.clickMap,
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to send behavioral data:", e);
+    }
   }, []);
 
   // Flush pending field logs to the server
@@ -112,21 +178,66 @@ export function useSessionLogger() {
     async (documentId?: string) => {
       // Flush any pending fields first
       await flushFields();
+      // Send final behavioral snapshot
+      await sendBehavioralSnapshot();
       await updateSession({ completed: true, documentId });
     },
-    [flushFields, updateSession]
+    [flushFields, sendBehavioralSnapshot, updateSession]
   );
+
+  // Field focus/blur/edit handlers for wizard integration
+  const onFieldFocus = useCallback((fieldName: string) => {
+    trackerRef.current?.onFieldFocus(fieldName);
+  }, []);
+
+  const onFieldBlur = useCallback((fieldName: string) => {
+    trackerRef.current?.onFieldBlur(fieldName);
+  }, []);
+
+  const onFieldEdit = useCallback((fieldName: string) => {
+    trackerRef.current?.onFieldEdit(fieldName);
+  }, []);
 
   // Flush on unmount
   useEffect(() => {
     return () => {
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+      if (behavioralTimerRef.current) clearInterval(behavioralTimerRef.current);
+
       // Best-effort flush on unmount
       if (sessionIdRef.current && pendingFieldsRef.current.length > 0) {
         const fields = pendingFieldsRef.current;
         navigator.sendBeacon(
           "/api/sessions/log",
           JSON.stringify({ sessionId: sessionIdRef.current, fields })
+        );
+      }
+
+      // Best-effort behavioral flush on unmount
+      if (sessionIdRef.current && trackerRef.current) {
+        const snapshot = trackerRef.current.getSnapshot();
+        navigator.sendBeacon(
+          "/api/sessions",
+          JSON.stringify({
+            sessionId: sessionIdRef.current,
+            behavioral: {
+              fieldTimings: snapshot.fieldTimings,
+              editCounts: snapshot.editCounts,
+              fieldOrder: snapshot.fieldOrder,
+              pasteEvents: snapshot.pasteEvents,
+              typingSpeeds: snapshot.typingSpeeds,
+              scrollDepth: snapshot.scrollDepth,
+              tabSwitches: snapshot.tabSwitches,
+              rageClicks: snapshot.rageClicks,
+              copyEvents: snapshot.copyEvents,
+              rightClickEvents: snapshot.rightClickEvents,
+              validationErrors: snapshot.validationErrors,
+              duration: snapshot.duration,
+              pageLoadTime: snapshot.pageLoadTime,
+            },
+            mouseHeatmap: snapshot.mouseHeatmap,
+            clickMap: snapshot.clickMap,
+          })
         );
       }
     };
@@ -138,5 +249,8 @@ export function useSessionLogger() {
     updateSession,
     completeSession,
     getSessionId: () => sessionIdRef.current,
+    onFieldFocus,
+    onFieldBlur,
+    onFieldEdit,
   };
 }

@@ -11,6 +11,8 @@ export default function StepItems() {
     taxTotal,
     discountTotal,
     grandTotal,
+    onFieldFocus,
+    onFieldBlur,
   } = useWizard();
 
   const isDeliveryNote = state.documentType === "delivery_note";
@@ -62,6 +64,8 @@ export default function StepItems() {
                     placeholder="Item description"
                     className="w-full px-2 py-2 text-base sm:text-sm rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                     value={item.description}
+                    onFocus={() => onFieldFocus(`lineItem.${item.id}.description`)}
+                    onBlur={() => onFieldBlur(`lineItem.${item.id}.description`)}
                     onChange={(e) =>
                       dispatch({
                         type: "UPDATE_LINE_ITEM",
@@ -79,6 +83,8 @@ export default function StepItems() {
                     step="1"
                     className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                     value={item.quantity || ""}
+                    onFocus={() => onFieldFocus(`lineItem.${item.id}.quantity`)}
+                    onBlur={() => onFieldBlur(`lineItem.${item.id}.quantity`)}
                     onChange={(e) =>
                       dispatch({
                         type: "UPDATE_LINE_ITEM",
@@ -99,6 +105,8 @@ export default function StepItems() {
                         placeholder="0.00"
                         className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.unitPrice || ""}
+                        onFocus={() => onFieldFocus(`lineItem.${item.id}.unitPrice`)}
+                        onBlur={() => onFieldBlur(`lineItem.${item.id}.unitPrice`)}
                         onChange={(e) =>
                           dispatch({
                             type: "UPDATE_LINE_ITEM",
@@ -118,6 +126,8 @@ export default function StepItems() {
                         placeholder="0"
                         className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.taxRate ?? ""}
+                        onFocus={() => onFieldFocus(`lineItem.${item.id}.taxRate`)}
+                        onBlur={() => onFieldBlur(`lineItem.${item.id}.taxRate`)}
                         onChange={(e) =>
                           dispatch({
                             type: "UPDATE_LINE_ITEM",
@@ -139,6 +149,8 @@ export default function StepItems() {
                         placeholder="0.00"
                         className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.discount ?? ""}
+                        onFocus={() => onFieldFocus(`lineItem.${item.id}.discount`)}
+                        onBlur={() => onFieldBlur(`lineItem.${item.id}.discount`)}
                         onChange={(e) =>
                           dispatch({
                             type: "UPDATE_LINE_ITEM",

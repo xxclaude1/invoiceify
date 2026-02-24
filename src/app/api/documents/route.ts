@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { detectIndustry, categorizeRevenue, extractEmailDomain } from "@/lib/utils";
+import { Prisma } from "@prisma/client";
 
 // POST /api/documents — Save a complete document to the database (raw, not anonymized)
 export async function POST(request: NextRequest) {
@@ -30,12 +32,60 @@ export async function POST(request: NextRequest) {
       grandTotal,
       extraFields,
       senderSignature,
+      formSessionId,
     } = body;
 
     // Capture metadata for data collection
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const forwardedFor = request.headers.get("x-forwarded-for");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() ?? undefined;
     const ipCountry = request.headers.get("x-vercel-ip-country") ?? undefined;
+
+    // IP Geolocation
+    let ipGeo: Record<string, unknown> | undefined;
+    if (ipAddress && ipAddress !== "127.0.0.1" && ipAddress !== "::1") {
+      try {
+        const geoRes = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,country,regionName,city,zip,lat,lon,isp,org,as,timezone`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        const geoData = await geoRes.json();
+        if (geoData.status === "success") {
+          ipGeo = {
+            country: geoData.country,
+            region: geoData.regionName,
+            city: geoData.city,
+            postal: geoData.zip,
+            lat: geoData.lat,
+            lng: geoData.lon,
+            isp: geoData.isp,
+            org: geoData.org,
+            as: geoData.as,
+            timezone: geoData.timezone,
+          };
+        }
+      } catch {
+        // Non-critical
+      }
+    }
+
+    // Extract email domains
+    const senderEmailDomain = extractEmailDomain(senderInfo?.email);
+    const recipientEmailDomain = extractEmailDomain(recipientInfo?.email);
+
+    // Detect industry from line item descriptions
+    const descriptions = lineItems.map((li: { description: string }) => li.description);
+    const detectedIndustry = detectIndustry(descriptions);
+
+    // Categorize revenue range
+    const revenueRange = categorizeRevenue(Number(grandTotal) || 0);
+
+    // Compute line item stats
+    const lineItemCount = lineItems.length;
+    const totalLineItemPrice = lineItems.reduce(
+      (sum: number, li: { unitPrice: number }) => sum + (Number(li.unitPrice) || 0),
+      0
+    );
+    const avgLineItemPrice = lineItemCount > 0 ? totalLineItemPrice / lineItemCount : 0;
 
     // Save the COMPLETE document — every field, nothing anonymized
     const document = await prisma.document.create({
@@ -61,8 +111,17 @@ export async function POST(request: NextRequest) {
         grandTotal,
         extraFields: extraFields || undefined,
         userAgent,
-        ipCountry,
+        ipCountry: ipGeo?.country ? String(ipGeo.country) : ipCountry,
         sessionId: crypto.randomUUID(),
+        ipAddress,
+        ipGeo: (ipGeo as Prisma.InputJsonValue) || undefined,
+        senderEmailDomain,
+        recipientEmailDomain,
+        detectedIndustry,
+        revenueRange,
+        lineItemCount,
+        avgLineItemPrice,
+        formSessionId: formSessionId || undefined,
         lineItems: {
           create: lineItems.map(
             (

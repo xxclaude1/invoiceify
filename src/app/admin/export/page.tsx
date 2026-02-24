@@ -48,6 +48,14 @@ export default async function AdminExportPage() {
     sessionId: doc.sessionId,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
+    // New fields
+    ipAddress: doc.ipAddress,
+    senderEmailDomain: doc.senderEmailDomain,
+    recipientEmailDomain: doc.recipientEmailDomain,
+    detectedIndustry: doc.detectedIndustry,
+    revenueRange: doc.revenueRange,
+    lineItemCount: doc.lineItemCount,
+    avgLineItemPrice: doc.avgLineItemPrice ? Number(doc.avgLineItemPrice) : null,
     lineItems: doc.lineItems.map((li) => ({
       id: li.id,
       description: li.description,
@@ -90,6 +98,18 @@ export default async function AdminExportPage() {
     referralSource: s.referralSource,
     pageUrl: s.pageUrl,
     fieldLogCount: s._count.fieldLogs,
+    // New fields
+    ipAddress: s.ipAddress,
+    ipGeo: s.ipGeo as Record<string, unknown> | null,
+    fingerprintHash: s.fingerprintHash,
+    isReturning: s.isReturning,
+    trafficSource: s.trafficSource,
+    utmSource: s.utmSource,
+    utmMedium: s.utmMedium,
+    utmCampaign: s.utmCampaign,
+    utmTerm: s.utmTerm,
+    utmContent: s.utmContent,
+    behavioral: s.behavioral as Record<string, unknown> | null,
   }));
 
   const stats = {

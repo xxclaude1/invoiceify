@@ -1,24 +1,87 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 // POST /api/sessions — Create a new form session when user starts typing
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { documentType, deviceInfo, referralSource, pageUrl } = body;
+    const {
+      documentType, deviceInfo, referralSource, pageUrl,
+      fingerprint, fingerprintHash, preferredLangs,
+      fullReferrer, utmSource, utmMedium, utmCampaign, utmTerm, utmContent,
+      landingPage, searchQuery, trafficSource, socialPlatform,
+    } = body;
 
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const ipCountry = request.headers.get("x-vercel-ip-country") ?? undefined;
+
+    // Extract IP address from x-forwarded-for header
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() ?? undefined;
+
+    // IP Geolocation via ip-api.com (free, 45 req/min)
+    let ipGeo: Record<string, unknown> | undefined;
+    if (ipAddress && ipAddress !== "127.0.0.1" && ipAddress !== "::1") {
+      try {
+        const geoRes = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,country,regionName,city,zip,lat,lon,isp,org,as,timezone`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        const geoData = await geoRes.json();
+        if (geoData.status === "success") {
+          ipGeo = {
+            country: geoData.country,
+            region: geoData.regionName,
+            city: geoData.city,
+            postal: geoData.zip,
+            lat: geoData.lat,
+            lng: geoData.lon,
+            isp: geoData.isp,
+            org: geoData.org,
+            as: geoData.as,
+            timezone: geoData.timezone,
+          };
+        }
+      } catch {
+        // Geolocation failed — non-critical, continue
+      }
+    }
+
+    // Check if returning visitor by fingerprint hash
+    let isReturning = false;
+    if (fingerprintHash) {
+      const existing = await prisma.formSession.findFirst({
+        where: { fingerprintHash },
+        select: { id: true },
+      });
+      isReturning = !!existing;
+    }
 
     const session = await prisma.formSession.create({
       data: {
         documentType: documentType || undefined,
         deviceInfo: deviceInfo || undefined,
         userAgent,
-        ipCountry,
+        ipCountry: ipGeo?.country ? String(ipGeo.country) : ipCountry,
         referralSource: referralSource || undefined,
         pageUrl: pageUrl || undefined,
+        ipAddress,
+        ipGeo: (ipGeo as Prisma.InputJsonValue) || undefined,
+        preferredLangs: preferredLangs || undefined,
+        fingerprint: fingerprint || undefined,
+        fingerprintHash: fingerprintHash || undefined,
+        fullReferrer: fullReferrer || undefined,
+        utmSource: utmSource || undefined,
+        utmMedium: utmMedium || undefined,
+        utmCampaign: utmCampaign || undefined,
+        utmTerm: utmTerm || undefined,
+        utmContent: utmContent || undefined,
+        landingPage: landingPage || undefined,
+        searchQuery: searchQuery || undefined,
+        trafficSource: trafficSource || undefined,
+        socialPlatform: socialPlatform || undefined,
+        isReturning,
       },
     });
 
@@ -29,11 +92,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/sessions — Update session (activity, snapshot, completion)
+// PUT /api/sessions — Update session (activity, snapshot, completion, behavioral)
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, documentType, formSnapshot, completed, documentId } = body;
+    const { sessionId, documentType, formSnapshot, completed, documentId, behavioral, mouseHeatmap, clickMap } = body;
 
     if (!sessionId) {
       return NextResponse.json({ success: false, error: "sessionId required" }, { status: 400 });
@@ -49,6 +112,9 @@ export async function PUT(request: NextRequest) {
       data.completedAt = new Date();
     }
     if (documentId) data.documentId = documentId;
+    if (behavioral) data.behavioral = behavioral;
+    if (mouseHeatmap) data.mouseHeatmap = mouseHeatmap;
+    if (clickMap) data.clickMap = clickMap;
 
     await prisma.formSession.update({
       where: { id: sessionId },

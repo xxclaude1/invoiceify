@@ -25,6 +25,16 @@ interface FormSession {
   formSnapshot: Record<string, unknown> | null;
   fieldLogs: FieldLog[];
   _count: { fieldLogs: number };
+  // New fields
+  fingerprintHash: string | null;
+  isReturning: boolean;
+  trafficSource: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  ipAddress: string | null;
+  ipGeo: Record<string, unknown> | null;
+  behavioral: Record<string, unknown> | null;
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -116,10 +126,16 @@ export default function AdminSessionsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     {getStatusBadge(s)}
+                    {s.isReturning && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/20 text-purple-400">Returning</span>
+                    )}
                     <span className="text-sm font-medium text-white">
                       {s.documentType ? DOC_TYPE_LABELS[s.documentType] || s.documentType : "Unknown Type"}
                     </span>
                     <span className="text-xs text-gray-600 font-mono">{s.id.slice(0, 8)}...</span>
+                    {s.trafficSource && (
+                      <span className="text-[10px] text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded">{s.trafficSource}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                     <span>{new Date(s.startedAt).toLocaleString()}</span>
@@ -163,7 +179,64 @@ export default function AdminSessionsPage() {
                           : "—"}
                       </p>
                     </div>
+                    {s.fingerprintHash && (
+                      <div>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Fingerprint Hash</p>
+                        <p className="text-xs text-gray-300 font-mono truncate">{s.fingerprintHash.slice(0, 16)}...</p>
+                      </div>
+                    )}
+                    {s.trafficSource && (
+                      <div>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Traffic Source</p>
+                        <p className="text-xs text-gray-300">{s.trafficSource}</p>
+                      </div>
+                    )}
+                    {(s.utmSource || s.utmMedium || s.utmCampaign) && (
+                      <div>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">UTM Params</p>
+                        <p className="text-xs text-gray-300 truncate">
+                          {[s.utmSource && `src=${s.utmSource}`, s.utmMedium && `med=${s.utmMedium}`, s.utmCampaign && `camp=${s.utmCampaign}`].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                    )}
+                    {s.ipAddress && (
+                      <div>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">IP Address</p>
+                        <p className="text-xs text-gray-300 font-mono">{s.ipAddress}</p>
+                      </div>
+                    )}
+                    {s.ipGeo && (
+                      <div className="col-span-2">
+                        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">IP Geolocation</p>
+                        <p className="text-xs text-gray-300">
+                          {[(s.ipGeo as Record<string, string>).city, (s.ipGeo as Record<string, string>).region, (s.ipGeo as Record<string, string>).country].filter(Boolean).join(", ")}
+                          {(s.ipGeo as Record<string, string>).isp && ` · ${(s.ipGeo as Record<string, string>).isp}`}
+                        </p>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Behavioral Summary */}
+                  {s.behavioral && (
+                    <div className="mb-4 p-3 bg-gray-800/30 rounded-lg">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Behavioral Summary</p>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                        {[
+                          { label: "Duration", value: `${Math.round(((s.behavioral as Record<string, number>).duration || 0) / 1000)}s` },
+                          { label: "Fields", value: Object.keys((s.behavioral as Record<string, Record<string, number>>).editCounts || {}).length },
+                          { label: "Edits", value: Object.values((s.behavioral as Record<string, Record<string, number>>).editCounts || {}).reduce((sum, n) => sum + n, 0) },
+                          { label: "Scroll", value: `${(s.behavioral as Record<string, number>).scrollDepth || 0}%` },
+                          { label: "Tab Switches", value: (s.behavioral as Record<string, number>).tabSwitches || 0 },
+                          { label: "Rage Clicks", value: (s.behavioral as Record<string, number>).rageClicks || 0 },
+                        ].map((m) => (
+                          <div key={m.label}>
+                            <p className="text-xs font-medium text-white">{m.value}</p>
+                            <p className="text-[9px] text-gray-500">{m.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {s.documentId && (
                     <div className="mb-4 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">

@@ -215,13 +215,15 @@ interface WizardContextValue {
   grandTotal: number;
   completeSession: (documentId?: string) => Promise<void>;
   getSessionId: () => string | null;
+  onFieldFocus: (fieldName: string) => void;
+  onFieldBlur: (fieldName: string) => void;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
 
 export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(wizardReducer, initialState);
-  const { ensureSession, logField, updateSession, completeSession, getSessionId } = useSessionLogger();
+  const { ensureSession, logField, updateSession, completeSession, getSessionId, onFieldFocus, onFieldBlur, onFieldEdit } = useSessionLogger();
   const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Extract field name from action for logging
@@ -293,9 +295,11 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         ensureSession(docType).then(() => {
           logField(fieldInfo.name, fieldInfo.value);
         });
+        // Track field edit for behavioral data
+        onFieldEdit(fieldInfo.name);
       }
     },
-    [ensureSession, logField, getFieldInfoFromAction]
+    [ensureSession, logField, getFieldInfoFromAction, onFieldEdit]
   );
 
   // Periodically save form snapshot (every 30 seconds of activity)
@@ -368,6 +372,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         grandTotal,
         completeSession,
         getSessionId,
+        onFieldFocus,
+        onFieldBlur,
       }}
     >
       {children}

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -35,6 +36,10 @@ export default async function AdminOverviewPage() {
     totalSessions,
     completedSessions,
     totalFieldLogs,
+    returningSessions,
+    topTrafficSources,
+    topIndustries,
+    sessionsWithBehavioral,
   ] = await Promise.all([
     prisma.document.count(),
     prisma.document.count({ where: { createdAt: { gte: startOfMonth } } }),
@@ -68,10 +73,37 @@ export default async function AdminOverviewPage() {
     prisma.formSession.count(),
     prisma.formSession.count({ where: { completed: true } }),
     prisma.formFieldLog.count(),
+    prisma.formSession.count({ where: { isReturning: true } }),
+    prisma.formSession.groupBy({ by: ["trafficSource"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, where: { trafficSource: { not: null } }, take: 5 }),
+    prisma.document.groupBy({ by: ["detectedIndustry"], _count: { id: true }, orderBy: { _count: { id: "desc" } }, where: { detectedIndustry: { not: null } }, take: 5 }),
+    prisma.formSession.findMany({ where: { behavioral: { not: Prisma.JsonNullValueFilter.JsonNull } }, select: { behavioral: true } }),
   ]);
 
   const totalValue = allDocs.reduce((sum, d) => sum + Number(d.grandTotal), 0);
   const avgValue = totalDocs > 0 ? totalValue / totalDocs : 0;
+  const returningPct = totalSessions > 0 ? Math.round((returningSessions / totalSessions) * 100) : 0;
+  const topTraffic = topTrafficSources.length > 0 ? topTrafficSources[0].trafficSource : "N/A";
+  const topIndustry = topIndustries.length > 0 ? (topIndustries[0].detectedIndustry || "").replace(/_/g, " ") : "N/A";
+
+  // Avg session duration from behavioral data
+  let avgSessionDuration = 0;
+  if (sessionsWithBehavioral.length > 0) {
+    const totalDur = sessionsWithBehavioral.reduce((sum, s) => {
+      const b = s.behavioral as Record<string, unknown> | null;
+      return sum + ((b?.duration as number) || 0);
+    }, 0);
+    avgSessionDuration = Math.round(totalDur / sessionsWithBehavioral.length / 1000);
+  }
+
+  // Top countries from sessions
+  const sessionCountries = await prisma.formSession.groupBy({
+    by: ["ipCountry"],
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+    where: { ipCountry: { not: null } },
+    take: 3,
+  });
+  const topCountriesStr = sessionCountries.map((c) => c.ipCountry).join(", ") || "N/A";
 
   const DOC_TYPE_LABELS: Record<string, string> = {
     invoice: "Invoice", tax_invoice: "Tax Invoice", proforma: "Proforma",
@@ -107,6 +139,11 @@ export default async function AdminOverviewPage() {
           { label: "Completion Rate", value: totalSessions > 0 ? `${Math.round((completedSessions / totalSessions) * 100)}%` : "N/A", color: "text-emerald-400", sub: `${completedSessions} of ${totalSessions} sessions converted` },
           { label: "Field Changes Logged", value: totalFieldLogs.toLocaleString(), color: "text-orange-400", sub: `Real-time keystroke data` },
           { label: "Avg Fields per Session", value: totalSessions > 0 ? Math.round(totalFieldLogs / totalSessions) : 0, color: "text-pink-400", sub: "Engagement depth metric" },
+          { label: "Returning Visitors", value: `${returningPct}%`, color: "text-violet-400", sub: `${returningSessions} of ${totalSessions} sessions` },
+          { label: "Top Traffic Source", value: topTraffic || "N/A", color: "text-teal-400", sub: "Most common acquisition channel" },
+          { label: "Top Industry", value: topIndustry, color: "text-lime-400", sub: "Detected from line items" },
+          { label: "Avg Session Duration", value: avgSessionDuration > 60 ? `${Math.floor(avgSessionDuration / 60)}m ${avgSessionDuration % 60}s` : `${avgSessionDuration}s`, color: "text-sky-400", sub: `From ${sessionsWithBehavioral.length} sessions` },
+          { label: "Top Countries", value: topCountriesStr, color: "text-rose-400", sub: "By session count" },
         ].map((stat) => (
           <div key={stat.label} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">

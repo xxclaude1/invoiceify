@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import * as XLSX from "xlsx";
 
 interface LineItem {
   id: string;
@@ -39,6 +40,13 @@ interface Doc {
   sessionId: string | null;
   createdAt: string;
   updatedAt: string;
+  ipAddress: string | null;
+  senderEmailDomain: string | null;
+  recipientEmailDomain: string | null;
+  detectedIndustry: string | null;
+  revenueRange: string | null;
+  lineItemCount: number | null;
+  avgLineItemPrice: number | null;
   lineItems: LineItem[];
 }
 
@@ -71,6 +79,17 @@ interface Session {
   referralSource: string | null;
   pageUrl: string | null;
   fieldLogCount: number;
+  ipAddress: string | null;
+  ipGeo: Record<string, unknown> | null;
+  fingerprintHash: string | null;
+  isReturning: boolean;
+  trafficSource: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmTerm: string | null;
+  utmContent: string | null;
+  behavioral: Record<string, unknown> | null;
 }
 
 interface Stats {
@@ -400,6 +419,187 @@ export default function AdminExportClient({
     downloadBlob(blob, `invoiceify-sessions-${new Date().toISOString().split("T")[0]}.csv`);
   };
 
+  // XLSX Full Workbook Export
+  const exportFullXLSX = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Documents sheet
+    const docRows = documents.map((doc) => {
+      const s = doc.senderInfo as Record<string, string>;
+      const r = doc.recipientInfo as Record<string, string>;
+      return {
+        "Doc Number": doc.documentNumber, Type: doc.type, Status: doc.status,
+        Currency: doc.currency, Subtotal: doc.subtotal, Tax: doc.taxTotal,
+        Discount: doc.discountTotal, "Grand Total": doc.grandTotal,
+        "Issue Date": doc.issueDate, "Due Date": doc.dueDate || "",
+        "Sender Business": s?.businessName || "", "Sender Email": s?.email || "",
+        "Recipient Business": r?.businessName || "", "Recipient Email": r?.email || "",
+        "Industry": doc.detectedIndustry || "", "Revenue Range": doc.revenueRange || "",
+        "Sender Domain": doc.senderEmailDomain || "", "Recipient Domain": doc.recipientEmailDomain || "",
+        "Line Items": doc.lineItemCount || doc.lineItems.length, "Avg Item Price": doc.avgLineItemPrice ?? "",
+        "Country": doc.ipCountry || "", "IP": doc.ipAddress || "",
+        "Guest/User": doc.userId ? "User" : "Guest", "Created": doc.createdAt,
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docRows), "Documents");
+
+    // Users sheet
+    const userRows = users.map((u) => ({
+      Email: u.email, Name: u.name || "", Provider: u.provider, Role: u.role,
+      Business: u.businessName || "", "Tax ID": u.taxId || "", Currency: u.defaultCurrency,
+      Documents: u.totalDocuments, Clients: u.totalClients, "Total Invoiced": u.totalInvoiced,
+      "Signed Up": u.createdAt,
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(userRows), "Users");
+
+    // Sessions sheet
+    const sessRows = sessions.map((s) => {
+      const duration = Math.floor(
+        (new Date(s.completedAt || s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 1000
+      );
+      return {
+        ID: s.id, Type: s.documentType || "", Started: s.startedAt,
+        "Duration (s)": duration, Completed: s.completed ? "Yes" : "No",
+        "Field Changes": s.fieldLogCount, Returning: s.isReturning ? "Yes" : "No",
+        "Traffic Source": s.trafficSource || "", "UTM Source": s.utmSource || "",
+        "UTM Medium": s.utmMedium || "", "UTM Campaign": s.utmCampaign || "",
+        Country: s.ipCountry || "", IP: s.ipAddress || "",
+        "Fingerprint": s.fingerprintHash?.slice(0, 16) || "",
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sessRows), "Sessions");
+
+    // Line Items sheet
+    const liRows: Record<string, unknown>[] = [];
+    for (const doc of documents) {
+      const s = doc.senderInfo as Record<string, string>;
+      for (const li of doc.lineItems) {
+        liRows.push({
+          "Doc Number": doc.documentNumber, Type: doc.type, Currency: doc.currency,
+          Description: li.description, Qty: li.quantity, "Unit Price": li.unitPrice,
+          "Tax %": li.taxRate ?? 0, Discount: li.discount ?? 0, "Line Total": li.lineTotal,
+          "Sender": s?.businessName || "", Created: doc.createdAt,
+        });
+      }
+    }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(liRows), "Line Items");
+
+    // Business Contacts sheet
+    const bizMap = new Map<string, Record<string, string>>();
+    for (const doc of documents) {
+      const s = doc.senderInfo as Record<string, unknown>;
+      if (!s?.businessName) continue;
+      const name = String(s.businessName);
+      if (bizMap.has(name)) continue;
+      bizMap.set(name, { Business: name, Email: String(s.email ?? ""), Phone: String(s.phone ?? ""), "Tax ID": String(s.taxId ?? "") });
+    }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Array.from(bizMap.values())), "Businesses");
+
+    // Client Contacts sheet
+    const cliMap = new Map<string, Record<string, string>>();
+    for (const doc of documents) {
+      const r = doc.recipientInfo as Record<string, unknown>;
+      if (!r?.businessName) continue;
+      const name = String(r.businessName);
+      if (cliMap.has(name)) continue;
+      cliMap.set(name, { Client: name, Email: String(r.email ?? ""), Phone: String(r.phone ?? "") });
+    }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Array.from(cliMap.values())), "Clients");
+
+    // Behavioral sheet
+    const behRows = sessions.filter((s) => s.behavioral).map((s) => {
+      const b = s.behavioral as Record<string, unknown>;
+      return {
+        "Session ID": s.id, Type: s.documentType || "",
+        "Duration (ms)": (b.duration as number) || 0,
+        "Scroll Depth %": (b.scrollDepth as number) || 0,
+        "Tab Switches": (b.tabSwitches as number) || 0,
+        "Rage Clicks": (b.rageClicks as number) || 0,
+        "Paste Events": ((b.pasteEvents as string[]) || []).length,
+        "Fields Edited": Object.keys((b.editCounts as Record<string, number>) || {}).length,
+        "Total Edits": Object.values((b.editCounts as Record<string, number>) || {}).reduce((sum, n) => sum + n, 0),
+        "Page Load (ms)": (b.pageLoadTime as number) || 0,
+        Completed: s.completed ? "Yes" : "No",
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(behRows), "Behavioral");
+
+    // Network sheet
+    const netRows = sessions.filter((s) => s.ipGeo).map((s) => {
+      const g = s.ipGeo as Record<string, string>;
+      return {
+        "Session ID": s.id, IP: s.ipAddress || "",
+        Country: g?.country || "", Region: g?.region || "", City: g?.city || "",
+        Postal: g?.postal || "", Lat: g?.lat || "", Lng: g?.lng || "",
+        ISP: g?.isp || "", Org: g?.org || "", AS: g?.as || "",
+        Timezone: g?.timezone || "",
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(netRows), "Network");
+
+    XLSX.writeFile(wb, `invoiceify-full-workbook-${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
+  // Behavioral Data CSV/XLSX
+  const exportBehavioralCSV = () => {
+    const headers = [
+      "Session ID", "Document Type", "Duration (ms)", "Scroll Depth %",
+      "Tab Switches", "Rage Clicks", "Paste Events", "Fields Edited",
+      "Total Edits", "Page Load (ms)", "Completed",
+    ];
+    const rows = sessions.filter((s) => s.behavioral).map((s) => {
+      const b = s.behavioral as Record<string, unknown>;
+      return [
+        s.id, s.documentType || "", (b.duration as number) || 0,
+        (b.scrollDepth as number) || 0, (b.tabSwitches as number) || 0,
+        (b.rageClicks as number) || 0, ((b.pasteEvents as string[]) || []).length,
+        Object.keys((b.editCounts as Record<string, number>) || {}).length,
+        Object.values((b.editCounts as Record<string, number>) || {}).reduce((sum, n) => sum + n, 0),
+        (b.pageLoadTime as number) || 0, s.completed ? "Yes" : "No",
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-behavioral-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  // Network/Geo CSV
+  const exportNetworkCSV = () => {
+    const headers = [
+      "Session ID", "IP Address", "Country", "Region", "City",
+      "Postal", "Lat", "Lng", "ISP", "Org", "AS", "Timezone",
+    ];
+    const rows = sessions.filter((s) => s.ipGeo).map((s) => {
+      const g = s.ipGeo as Record<string, string>;
+      return [
+        s.id, s.ipAddress || "", g?.country || "", g?.region || "",
+        g?.city || "", g?.postal || "", g?.lat || "", g?.lng || "",
+        g?.isp || "", g?.org || "", g?.as || "", g?.timezone || "",
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-network-geo-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  // Traffic Sources CSV
+  const exportTrafficCSV = () => {
+    const headers = [
+      "Session ID", "Traffic Source", "UTM Source", "UTM Medium",
+      "UTM Campaign", "UTM Term", "UTM Content", "Returning",
+      "Referral", "Completed", "Document Type",
+    ];
+    const rows = sessions.map((s) => [
+      s.id, s.trafficSource || "direct", s.utmSource || "", s.utmMedium || "",
+      s.utmCampaign || "", s.utmTerm || "", s.utmContent || "",
+      s.isReturning ? "Yes" : "No", s.referralSource || "", s.completed ? "Yes" : "No",
+      s.documentType || "",
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-traffic-sources-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -621,6 +821,102 @@ export default function AdminExportClient({
             Download Sessions CSV
           </button>
         </div>
+
+        {/* Full XLSX Workbook */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v1.5c0 .621-.504 1.125-1.125 1.125" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Full XLSX Workbook</h3>
+              <p className="text-xs text-gray-500">Multi-sheet Excel workbook with everything</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            8 sheets: Documents, Users, Sessions, Line Items, Businesses, Clients, Behavioral, Network. One-click download of ALL data in Excel format.
+          </p>
+          <button
+            onClick={exportFullXLSX}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Full XLSX Workbook
+          </button>
+        </div>
+
+        {/* Behavioral Data CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Behavioral Data CSV</h3>
+              <p className="text-xs text-gray-500">Interaction metrics from tracked sessions</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Duration, scroll depth, tab switches, rage clicks, paste events, edit counts, page load times. {sessions.filter((s) => s.behavioral).length} sessions with behavioral data.
+          </p>
+          <button
+            onClick={exportBehavioralCSV}
+            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Behavioral CSV
+          </button>
+        </div>
+
+        {/* Network/Geo CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Network / Geo CSV</h3>
+              <p className="text-xs text-gray-500">IP geolocation data from sessions</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            IP address, country, region, city, postal code, coordinates, ISP, organization, AS number. {sessions.filter((s) => s.ipGeo).length} geolocated sessions.
+          </p>
+          <button
+            onClick={exportNetworkCSV}
+            className="w-full bg-teal-500 hover:bg-teal-600 text-black font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Network/Geo CSV
+          </button>
+        </div>
+
+        {/* Traffic Sources CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-rose-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.556a4.5 4.5 0 00-6.364-6.364L4.5 8.257" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Traffic Sources CSV</h3>
+              <p className="text-xs text-gray-500">UTM parameters and traffic categorization</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Traffic source type, all UTM parameters, returning visitor flag, referral URL. Full marketing attribution for every session.
+          </p>
+          <button
+            onClick={exportTrafficCSV}
+            className="w-full bg-rose-500 hover:bg-rose-600 text-white font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Traffic Sources CSV
+          </button>
+        </div>
       </div>
 
       {/* Custom Export */}
@@ -659,6 +955,12 @@ const CUSTOM_FIELDS = [
   { key: "guestOrUser", label: "Guest/User" },
   { key: "ipCountry", label: "Country" },
   { key: "createdAt", label: "Created At" },
+  { key: "detectedIndustry", label: "Detected Industry" },
+  { key: "revenueRange", label: "Revenue Range" },
+  { key: "senderEmailDomain", label: "Sender Email Domain" },
+  { key: "recipientEmailDomain", label: "Recipient Email Domain" },
+  { key: "avgLineItemPrice", label: "Avg Line Item Price" },
+  { key: "ipAddress", label: "IP Address" },
 ];
 
 const DOC_TYPES = [
@@ -728,6 +1030,12 @@ function CustomExportSection({ documents }: { documents: Doc[] }) {
       case "guestOrUser": return doc.userId ? "User" : "Guest";
       case "ipCountry": return doc.ipCountry || "";
       case "createdAt": return doc.createdAt;
+      case "detectedIndustry": return doc.detectedIndustry || "";
+      case "revenueRange": return doc.revenueRange || "";
+      case "senderEmailDomain": return doc.senderEmailDomain || "";
+      case "recipientEmailDomain": return doc.recipientEmailDomain || "";
+      case "avgLineItemPrice": return doc.avgLineItemPrice != null ? String(doc.avgLineItemPrice) : "";
+      case "ipAddress": return doc.ipAddress || "";
       default: return "";
     }
   };

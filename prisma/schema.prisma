@@ -157,6 +157,21 @@ model Document {
   ipCountry       String?         // Country from IP geolocation
   sessionId       String?         // Anonymous session tracking for guests
 
+  // Network & Location
+  ipAddress       String?
+  ipGeo           Json?           // { country, region, city, postal, lat, lng, isp, org, as, timezone }
+
+  // Business Intelligence — extracted fields
+  senderEmailDomain    String?    // extracted from sender email
+  recipientEmailDomain String?    // extracted from recipient email
+  detectedIndustry     String?    // keyword-matched from line items
+  revenueRange         String?    // categorized: <1k, 1k-5k, 5k-25k, 25k-100k, 100k+
+  lineItemCount        Int?
+  avgLineItemPrice     Decimal?   @db.Decimal(12, 2)
+
+  // Link back to form session
+  formSessionId   String?
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   sentAt          DateTime?
@@ -174,6 +189,9 @@ model Document {
   @@index([currency])
   @@index([industryPreset])
   @@index([ipCountry])
+  @@index([senderEmailDomain])
+  @@index([detectedIndustry])
+  @@index([revenueRange])
   @@map("documents")
 }
 
@@ -224,6 +242,35 @@ model FormSession {
   referralSource  String?   // utm params, referrer URL
   pageUrl         String?
 
+  // Network & Location
+  ipAddress       String?
+  ipGeo           Json?     // { country, region, city, postal, lat, lng, isp, org, as, timezone }
+  preferredLangs  String?   // Accept-Language header
+
+  // Device Fingerprinting
+  fingerprint     Json?     // all device signals (screen, GPU, canvas hash, audio hash, etc.)
+  fingerprintHash String?   // SHA-256 of key signals for returning visitor detection
+
+  // Behavioral Data
+  behavioral      Json?     // { fieldTimings, editCounts, fieldOrder, pasteEvents, typingSpeeds, scrollDepth, tabSwitches, rageClicks, duration, pageLoadTime }
+  mouseHeatmap    Json?     // array of { x, y, t }
+  clickMap        Json?     // array of { x, y, target, t }
+
+  // Referral & Marketing
+  fullReferrer    String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmTerm         String?
+  utmContent      String?
+
+  // Traffic Intelligence
+  landingPage     String?
+  searchQuery     String?
+  trafficSource   String?   // organic, direct, social, referral, paid, email
+  socialPlatform  String?   // facebook, twitter, linkedin, etc.
+  isReturning     Boolean   @default(false)
+
   // Snapshot of form data at last activity (for abandoned session recovery)
   formSnapshot    Json?     // full wizard state at time of last activity
 
@@ -232,6 +279,11 @@ model FormSession {
   @@index([documentType])
   @@index([startedAt])
   @@index([completed])
+  @@index([fingerprintHash])
+  @@index([trafficSource])
+  @@index([utmSource])
+  @@index([ipAddress])
+  @@index([isReturning])
   @@map("form_sessions")
 }
 

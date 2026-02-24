@@ -32,7 +32,7 @@ const COUNTRIES = [
 ];
 
 export default function StepContent() {
-  const { state, dispatch } = useWizard();
+  const { state, dispatch, onFieldFocus, onFieldBlur } = useWizard();
 
   const config = DOCUMENT_TYPE_CONFIGS.find(
     (c) => c.type === state.documentType
@@ -60,6 +60,8 @@ export default function StepContent() {
             label="Business Name *"
             placeholder="Your Company Ltd."
             value={state.senderInfo.businessName ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.businessName")}
+            onBlur={() => onFieldBlur("senderInfo.businessName")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -71,6 +73,8 @@ export default function StepContent() {
             label="Contact Name"
             placeholder="John Smith"
             value={state.senderInfo.contactName ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.contactName")}
+            onBlur={() => onFieldBlur("senderInfo.contactName")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -83,6 +87,8 @@ export default function StepContent() {
             type="email"
             placeholder="hello@company.com"
             value={state.senderInfo.email ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.email")}
+            onBlur={() => onFieldBlur("senderInfo.email")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -95,6 +101,8 @@ export default function StepContent() {
             type="tel"
             placeholder="+1 (555) 123-4567"
             value={state.senderInfo.phone ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.phone")}
+            onBlur={() => onFieldBlur("senderInfo.phone")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -106,6 +114,8 @@ export default function StepContent() {
             label="Address"
             placeholder="123 Main Street"
             value={state.senderInfo.address?.line1 ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.address.line1")}
+            onBlur={() => onFieldBlur("senderInfo.address.line1")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -125,6 +135,8 @@ export default function StepContent() {
             label="City"
             placeholder="New York"
             value={state.senderInfo.address?.city ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.address.city")}
+            onBlur={() => onFieldBlur("senderInfo.address.city")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -144,6 +156,8 @@ export default function StepContent() {
             label="Postal / ZIP Code"
             placeholder="10001"
             value={state.senderInfo.address?.postalCode ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.address.postalCode")}
+            onBlur={() => onFieldBlur("senderInfo.address.postalCode")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -163,6 +177,8 @@ export default function StepContent() {
             label="Country"
             value={state.senderInfo.address?.country ?? ""}
             options={[{ value: "", label: "Select country" }, ...COUNTRIES]}
+            onFocus={() => onFieldFocus("senderInfo.address.country")}
+            onBlur={() => onFieldBlur("senderInfo.address.country")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -182,6 +198,8 @@ export default function StepContent() {
             label="Tax ID / VAT Number"
             placeholder="US12-3456789"
             value={state.senderInfo.taxId ?? ""}
+            onFocus={() => onFieldFocus("senderInfo.taxId")}
+            onBlur={() => onFieldBlur("senderInfo.taxId")}
             onChange={(e) =>
               dispatch({
                 type: "SET_SENDER_INFO",
@@ -205,6 +223,8 @@ export default function StepContent() {
             label="Client / Business Name *"
             placeholder="Client Company Inc."
             value={state.recipientInfo.businessName ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.businessName")}
+            onBlur={() => onFieldBlur("recipientInfo.businessName")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -216,6 +236,8 @@ export default function StepContent() {
             label="Contact Name"
             placeholder="Jane Doe"
             value={state.recipientInfo.contactName ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.contactName")}
+            onBlur={() => onFieldBlur("recipientInfo.contactName")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -228,6 +250,8 @@ export default function StepContent() {
             type="email"
             placeholder="client@company.com"
             value={state.recipientInfo.email ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.email")}
+            onBlur={() => onFieldBlur("recipientInfo.email")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -240,6 +264,8 @@ export default function StepContent() {
             type="tel"
             placeholder="+1 (555) 987-6543"
             value={state.recipientInfo.phone ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.phone")}
+            onBlur={() => onFieldBlur("recipientInfo.phone")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -251,6 +277,8 @@ export default function StepContent() {
             label="Address"
             placeholder="456 Oak Avenue"
             value={state.recipientInfo.address?.line1 ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.address.line1")}
+            onBlur={() => onFieldBlur("recipientInfo.address.line1")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -270,6 +298,8 @@ export default function StepContent() {
             label="City"
             placeholder="Los Angeles"
             value={state.recipientInfo.address?.city ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.address.city")}
+            onBlur={() => onFieldBlur("recipientInfo.address.city")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -289,6 +319,8 @@ export default function StepContent() {
             label="Postal / ZIP Code"
             placeholder="90001"
             value={state.recipientInfo.address?.postalCode ?? ""}
+            onFocus={() => onFieldFocus("recipientInfo.address.postalCode")}
+            onBlur={() => onFieldBlur("recipientInfo.address.postalCode")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
@@ -308,6 +340,8 @@ export default function StepContent() {
             label="Country"
             value={state.recipientInfo.address?.country ?? ""}
             options={[{ value: "", label: "Select country" }, ...COUNTRIES]}
+            onFocus={() => onFieldFocus("recipientInfo.address.country")}
+            onBlur={() => onFieldBlur("recipientInfo.address.country")}
             onChange={(e) =>
               dispatch({
                 type: "SET_RECIPIENT_INFO",
