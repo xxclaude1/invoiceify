@@ -482,7 +482,7 @@ export default function StepContent() {
               Notes
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
+              className="w-full px-3 py-2.5 text-base sm:text-sm rounded-lg border border-border bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
               rows={3}
               placeholder="Thank you for your business!"
               value={state.notes}
@@ -500,7 +500,7 @@ export default function StepContent() {
               Terms & Conditions
             </label>
             <textarea
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
+              className="w-full px-3 py-2.5 text-base sm:text-sm rounded-lg border border-border bg-white text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors resize-none"
               rows={3}
               placeholder="Payment due within 30 days..."
               value={state.terms}

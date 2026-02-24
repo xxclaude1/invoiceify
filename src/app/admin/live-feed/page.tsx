@@ -215,9 +215,9 @@ export default function AdminLiveFeedPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-3">
             Live Feed
             {autoRefresh && (
               <span className="flex items-center gap-1.5">
@@ -226,14 +226,11 @@ export default function AdminLiveFeedPage() {
               </span>
             )}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Real-time sessions & documents — auto-refreshes every 8 seconds
+          <p className="text-gray-400 text-xs sm:text-sm mt-1">
+            Real-time sessions & documents
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-600">
-            {lastRefresh.toLocaleTimeString()}
-          </span>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
@@ -254,31 +251,31 @@ export default function AdminLiveFeedPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Total Sessions</p>
           <p className="text-2xl font-bold text-white mt-1">{totalSessions}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
             Active Now
             {activeSessions > 0 && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />}
           </p>
           <p className="text-2xl font-bold text-yellow-400 mt-1">{activeSessions}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Completed</p>
           <p className="text-2xl font-bold text-green-400 mt-1">{completedSessions}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Abandoned</p>
           <p className="text-2xl font-bold text-red-400 mt-1">{abandonedSessions}</p>
         </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Completion Rate</p>
           <p className="text-2xl font-bold text-blue-400 mt-1">{completionRate}%</p>
         </div>
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 sm:p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wider">Documents</p>
           <p className="text-2xl font-bold text-white mt-1">{totalDocs}</p>
         </div>
@@ -331,8 +328,8 @@ export default function AdminLiveFeedPage() {
                         : "border-gray-800"
                     }`}
                   >
-                    <div className="px-5 py-4">
-                      <div className="flex items-center gap-4">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4">
+                      <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
                         {/* Status indicator */}
                         <div className="shrink-0">
                           {status === "active" ? (
@@ -468,7 +465,7 @@ export default function AdminLiveFeedPage() {
                       isNew ? "border-green-500/40 shadow-lg shadow-green-500/5" : "border-gray-800"
                     }`}
                   >
-                    <div className="px-5 py-4 flex items-center gap-4">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
                       {/* Check icon */}
                       <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
                         <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

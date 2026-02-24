@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 const NAV_ITEMS = [
   {
@@ -87,21 +88,31 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  return (
-    <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0">
+  const sidebarContent = (
+    <>
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-800">
-        <Link href="/admin" className="flex items-center gap-2">
+      <div className="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
+        <Link href="/admin" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <span className="text-xl font-bold text-white">Invoiceify</span>
           <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
             ADMIN
           </span>
         </Link>
+        {/* Close button - mobile only */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden p-1 text-gray-400 hover:text-white transition"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const active = item.exact
             ? pathname === item.href
@@ -110,6 +121,7 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition",
                 active
@@ -122,24 +134,12 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
             </Link>
           );
         })}
-
-        <div className="pt-4 border-t border-gray-800 mt-4">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-gray-200 transition"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-            </svg>
-            Back to Dashboard
-          </Link>
-        </div>
       </nav>
 
       {/* User section */}
       <div className="px-3 py-4 border-t border-gray-800">
         <div className="flex items-center gap-3 px-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 text-sm font-bold">
+          <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 text-sm font-bold shrink-0">
             {(user.name?.[0] || user.email?.[0] || "A").toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
@@ -159,6 +159,51 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
           Sign Out
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile header bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+        <Link href="/admin" className="flex items-center gap-2">
+          <span className="text-lg font-bold text-white">Invoiceify</span>
+          <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
+            ADMIN
+          </span>
+        </Link>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 text-gray-400 hover:text-white transition cursor-pointer"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      <aside
+        className={cn(
+          "lg:hidden fixed top-0 left-0 bottom-0 z-50 w-72 bg-gray-900 flex flex-col transition-transform duration-300",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-64 bg-gray-900 border-r border-gray-800 flex-col shrink-0">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

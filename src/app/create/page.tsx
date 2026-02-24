@@ -30,8 +30,8 @@ function WizardContent() {
   return (
     <div className="min-h-screen flex flex-col bg-surface">
       <Header />
-      <main className="flex-1 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 py-4 sm:py-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           {/* Step Indicator */}
           <div className="mb-6">
             <StepIndicator />
@@ -41,7 +41,7 @@ function WizardContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left — Form */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl border border-border shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-border shadow-sm p-4 sm:p-6">
                 {renderStep()}
 
                 {/* Navigation */}

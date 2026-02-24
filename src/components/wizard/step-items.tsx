@@ -60,7 +60,7 @@ export default function StepItems() {
                   <input
                     type="text"
                     placeholder="Item description"
-                    className="w-full px-2 py-1.5 text-sm rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+                    className="w-full px-2 py-2 text-base sm:text-sm rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                     value={item.description}
                     onChange={(e) =>
                       dispatch({
@@ -77,7 +77,7 @@ export default function StepItems() {
                     type="number"
                     min="0"
                     step="1"
-                    className="w-full px-2 py-1.5 text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+                    className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                     value={item.quantity || ""}
                     onChange={(e) =>
                       dispatch({
@@ -97,7 +97,7 @@ export default function StepItems() {
                         min="0"
                         step="0.01"
                         placeholder="0.00"
-                        className="w-full px-2 py-1.5 text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+                        className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.unitPrice || ""}
                         onChange={(e) =>
                           dispatch({
@@ -116,7 +116,7 @@ export default function StepItems() {
                         max="100"
                         step="0.1"
                         placeholder="0"
-                        className="w-full px-2 py-1.5 text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+                        className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.taxRate ?? ""}
                         onChange={(e) =>
                           dispatch({
@@ -137,7 +137,7 @@ export default function StepItems() {
                         min="0"
                         step="0.01"
                         placeholder="0.00"
-                        className="w-full px-2 py-1.5 text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+                        className="w-full px-2 py-2 text-base sm:text-sm text-right rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
                         value={item.discount ?? ""}
                         onChange={(e) =>
                           dispatch({

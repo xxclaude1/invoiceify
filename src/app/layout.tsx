@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/providers";
 import "./globals.css";
@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   title: "Invoiceify — Free Invoice Generator",
   description:
     "Create, customize, and download professional invoices for free. Invoice generator for freelancers, contractors, and small businesses.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
