@@ -345,7 +345,6 @@ function InvoicePDF({
   discountTotal,
   grandTotal,
 }: InvoicePDFProps) {
-  const isDeliveryNote = state.documentType === "delivery_note";
   const t = getTheme(state.templateId);
 
   return (
@@ -464,19 +463,15 @@ function InvoicePDF({
               Description
             </Text>
             <Text style={[styles.tableHeaderCell, styles.colQty, { color: t.mutedColor }]}>Qty</Text>
-            {!isDeliveryNote && (
-              <>
-                <Text style={[styles.tableHeaderCell, styles.colPrice, { color: t.mutedColor }]}>
-                  Price
-                </Text>
-                <Text style={[styles.tableHeaderCell, styles.colTax, { color: t.mutedColor }]}>
-                  Tax
-                </Text>
-                <Text style={[styles.tableHeaderCell, styles.colTotal, { color: t.mutedColor }]}>
-                  Total
-                </Text>
-              </>
-            )}
+            <Text style={[styles.tableHeaderCell, styles.colPrice, { color: t.mutedColor }]}>
+              Price
+            </Text>
+            <Text style={[styles.tableHeaderCell, styles.colTax, { color: t.mutedColor }]}>
+              Tax
+            </Text>
+            <Text style={[styles.tableHeaderCell, styles.colTotal, { color: t.mutedColor }]}>
+              Total
+            </Text>
           </View>
           {/* Rows */}
           {state.lineItems
@@ -489,62 +484,56 @@ function InvoicePDF({
                 <Text style={[styles.tableCell, styles.colQty, { color: t.textColor }]}>
                   {item.quantity}
                 </Text>
-                {!isDeliveryNote && (
-                  <>
-                    <Text style={[styles.tableCell, styles.colPrice, { color: t.textColor }]}>
-                      {formatCurrency(item.unitPrice, state.currency)}
-                    </Text>
-                    <Text style={[styles.tableCell, styles.colTax, { color: t.mutedColor }]}>
-                      {item.taxRate ? `${item.taxRate}%` : "-"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.tableCell,
-                        styles.colTotal,
-                        { fontFamily: "Helvetica-Bold", color: t.textColor },
-                      ]}
-                    >
-                      {formatCurrency(item.lineTotal, state.currency)}
-                    </Text>
-                  </>
-                )}
+                <Text style={[styles.tableCell, styles.colPrice, { color: t.textColor }]}>
+                  {formatCurrency(item.unitPrice, state.currency)}
+                </Text>
+                <Text style={[styles.tableCell, styles.colTax, { color: t.mutedColor }]}>
+                  {item.taxRate ? `${item.taxRate}%` : "-"}
+                </Text>
+                <Text
+                  style={[
+                    styles.tableCell,
+                    styles.colTotal,
+                    { fontFamily: "Helvetica-Bold", color: t.textColor },
+                  ]}
+                >
+                  {formatCurrency(item.lineTotal, state.currency)}
+                </Text>
               </View>
             ))}
         </View>
 
         {/* Totals */}
-        {!isDeliveryNote && (
-          <View style={styles.totals}>
-            <View style={styles.totalRow}>
-              <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Subtotal</Text>
-              <Text style={[styles.totalValue, { color: t.textColor }]}>
-                {formatCurrency(subtotal, state.currency)}
-              </Text>
-            </View>
-            {discountTotal > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Discount</Text>
-                <Text style={[styles.totalValue, { color: "#EF4444" }]}>
-                  -{formatCurrency(discountTotal, state.currency)}
-                </Text>
-              </View>
-            )}
-            {taxTotal > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Tax</Text>
-                <Text style={[styles.totalValue, { color: t.textColor }]}>
-                  {formatCurrency(taxTotal, state.currency)}
-                </Text>
-              </View>
-            )}
-            <View style={[styles.grandTotalRow, { borderTopColor: t.borderColor }]}>
-              <Text style={[styles.grandTotalLabel, { color: t.accentColor }]}>Total</Text>
-              <Text style={[styles.grandTotalValue, { color: t.accentColor }]}>
-                {formatCurrency(grandTotal, state.currency)}
-              </Text>
-            </View>
+        <View style={styles.totals}>
+          <View style={styles.totalRow}>
+            <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Subtotal</Text>
+            <Text style={[styles.totalValue, { color: t.textColor }]}>
+              {formatCurrency(subtotal, state.currency)}
+            </Text>
           </View>
-        )}
+          {discountTotal > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Discount</Text>
+              <Text style={[styles.totalValue, { color: "#EF4444" }]}>
+                -{formatCurrency(discountTotal, state.currency)}
+              </Text>
+            </View>
+          )}
+          {taxTotal > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalLabel, { color: t.mutedColor }]}>Tax</Text>
+              <Text style={[styles.totalValue, { color: t.textColor }]}>
+                {formatCurrency(taxTotal, state.currency)}
+              </Text>
+            </View>
+          )}
+          <View style={[styles.grandTotalRow, { borderTopColor: t.borderColor }]}>
+            <Text style={[styles.grandTotalLabel, { color: t.accentColor }]}>Total</Text>
+            <Text style={[styles.grandTotalValue, { color: t.accentColor }]}>
+              {formatCurrency(grandTotal, state.currency)}
+            </Text>
+          </View>
+        </View>
 
         {/* Notes & Terms */}
         {(state.notes || state.terms) && (

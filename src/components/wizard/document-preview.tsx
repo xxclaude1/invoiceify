@@ -21,7 +21,6 @@ export default function DocumentPreview() {
     (c) => c.type === state.documentType
   );
   const docLabel = config?.label.toUpperCase() ?? "DOCUMENT";
-  const isDeliveryNote = state.documentType === "delivery_note";
   const t = TEMPLATE_STYLES[state.templateId] || TEMPLATE_STYLES.classic;
 
   if (!state.documentType) {
@@ -141,16 +140,12 @@ export default function DocumentPreview() {
                   <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
                     Qty
                   </th>
-                  {!isDeliveryNote && (
-                    <>
-                      <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
-                        Price
-                      </th>
-                      <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
-                        Total
-                      </th>
-                    </>
-                  )}
+                  <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
+                    Price
+                  </th>
+                  <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -164,16 +159,12 @@ export default function DocumentPreview() {
                       <td className={cn("py-1 text-right", t.textColor)}>
                         {item.quantity}
                       </td>
-                      {!isDeliveryNote && (
-                        <>
-                          <td className={cn("py-1 text-right", t.textColor)}>
-                            {formatCurrency(item.unitPrice, state.currency)}
-                          </td>
-                          <td className={cn("py-1 text-right font-medium", t.textColor)}>
-                            {formatCurrency(item.lineTotal, state.currency)}
-                          </td>
-                        </>
-                      )}
+                      <td className={cn("py-1 text-right", t.textColor)}>
+                        {formatCurrency(item.unitPrice, state.currency)}
+                      </td>
+                      <td className={cn("py-1 text-right font-medium", t.textColor)}>
+                        {formatCurrency(item.lineTotal, state.currency)}
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -182,7 +173,7 @@ export default function DocumentPreview() {
         )}
 
         {/* Totals */}
-        {!isDeliveryNote && grandTotal > 0 && (
+        {grandTotal > 0 && (
           <div className={cn("border-t pt-2 space-y-1", t.borderColor)}>
             <div className={cn("flex justify-between", t.mutedColor)}>
               <span>Subtotal</span>
