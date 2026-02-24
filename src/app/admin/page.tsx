@@ -32,6 +32,9 @@ export default async function AdminOverviewPage() {
     docsByStatus,
     recentDocs,
     recentUsers,
+    totalSessions,
+    completedSessions,
+    totalFieldLogs,
   ] = await Promise.all([
     prisma.document.count(),
     prisma.document.count({ where: { createdAt: { gte: startOfMonth } } }),
@@ -62,6 +65,9 @@ export default async function AdminOverviewPage() {
       take: 5,
       select: { id: true, email: true, name: true, createdAt: true, provider: true },
     }),
+    prisma.formSession.count(),
+    prisma.formSession.count({ where: { completed: true } }),
+    prisma.formFieldLog.count(),
   ]);
 
   const totalValue = allDocs.reduce((sum, d) => sum + Number(d.grandTotal), 0);
@@ -97,6 +103,8 @@ export default async function AdminOverviewPage() {
           { label: "Total Value Invoiced", value: formatCurrency(totalValue), color: "text-amber-400", sub: `Avg ${formatCurrency(avgValue)} per doc` },
           { label: "Registered Accounts", value: totalUsers, color: "text-purple-400", sub: `${usersThisMonth} new this month` },
           { label: "Today", value: docsToday, color: "text-green-400", sub: `${docsThisWeek} this week / ${docsThisMonth} this month` },
+          { label: "Form Sessions", value: totalSessions, color: "text-cyan-400", sub: `${completedSessions} completed / ${totalSessions - completedSessions} abandoned` },
+          { label: "Field Changes Logged", value: totalFieldLogs.toLocaleString(), color: "text-orange-400", sub: `Real-time keystroke data` },
         ].map((stat) => (
           <div key={stat.label} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">

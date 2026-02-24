@@ -204,6 +204,58 @@ model LineItem {
 }
 
 // ============================================
+// FORM SESSIONS (tracks every user who starts the wizard)
+// Captures data even if they never click download (abandoned sessions)
+// ============================================
+
+model FormSession {
+  id              String    @id @default(uuid())
+  documentType    String?
+  startedAt       DateTime  @default(now())
+  lastActivityAt  DateTime  @default(now())
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  documentId      String?   // link to completed document if they downloaded
+
+  // Device & environment
+  deviceInfo      Json?     // { browser, os, screenWidth, screenHeight, mobile }
+  userAgent       String?
+  ipCountry       String?
+  referralSource  String?   // utm params, referrer URL
+  pageUrl         String?
+
+  // Snapshot of form data at last activity (for abandoned session recovery)
+  formSnapshot    Json?     // full wizard state at time of last activity
+
+  fieldLogs       FormFieldLog[]
+
+  @@index([documentType])
+  @@index([startedAt])
+  @@index([completed])
+  @@map("form_sessions")
+}
+
+// ============================================
+// FORM FIELD LOGS (every keystroke, debounced)
+// This captures what users type even if they abandon
+// ============================================
+
+model FormFieldLog {
+  id         String   @id @default(uuid())
+  sessionId  String
+  fieldName  String   // e.g. "senderInfo.businessName", "lineItems.0.description"
+  fieldValue String   @db.Text
+  loggedAt   DateTime @default(now())
+
+  session    FormSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([fieldName])
+  @@index([loggedAt])
+  @@map("form_field_logs")
+}
+
+// ============================================
 // DOCUMENT EVENTS (status changes, activity tracking)
 // ============================================
 

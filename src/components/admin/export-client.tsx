@@ -56,12 +56,30 @@ interface User {
   totalInvoiced: number;
 }
 
+interface Session {
+  id: string;
+  documentType: string | null;
+  startedAt: string;
+  lastActivityAt: string;
+  completed: boolean;
+  completedAt: string | null;
+  documentId: string | null;
+  deviceInfo: Record<string, unknown> | null;
+  ipCountry: string | null;
+  referralSource: string | null;
+  pageUrl: string | null;
+  fieldLogCount: number;
+}
+
 interface Stats {
   totalDocuments: number;
   totalValue: number;
   totalUsers: number;
   guestDocuments: number;
   userDocuments: number;
+  totalSessions: number;
+  completedSessions: number;
+  totalFieldLogs: number;
 }
 
 function formatCurrency(amount: number) {
@@ -82,10 +100,12 @@ function downloadBlob(blob: Blob, filename: string) {
 export default function AdminExportClient({
   documents,
   users,
+  sessions,
   stats,
 }: {
   documents: Doc[];
   users: User[];
+  sessions: Session[];
   stats: Stats;
 }) {
   const exportFullJSON = () => {
@@ -268,6 +288,116 @@ export default function AdminExportClient({
     downloadBlob(blob, `invoiceify-complete-report-${new Date().toISOString().split("T")[0]}.txt`);
   };
 
+  const exportBusinessContactsCSV = () => {
+    const businessMap = new Map<string, Record<string, string>>();
+    for (const doc of documents) {
+      const s = doc.senderInfo as Record<string, unknown>;
+      if (!s?.businessName) continue;
+      const name = String(s.businessName);
+      if (businessMap.has(name)) continue;
+      const addr = (s.address as Record<string, string>) || {};
+      businessMap.set(name, {
+        businessName: name,
+        contactName: String(s.contactName ?? ""),
+        email: String(s.email ?? ""),
+        phone: String(s.phone ?? ""),
+        address: [addr.line1, addr.city, addr.postalCode, addr.country].filter(Boolean).join(", "),
+        taxId: String(s.taxId ?? ""),
+      });
+    }
+    const headers = ["Business Name", "Contact Name", "Email", "Phone", "Address", "Tax ID"];
+    const rows = Array.from(businessMap.values()).map((b) =>
+      [b.businessName, b.contactName, b.email, b.phone, b.address, b.taxId]
+        .map((v) => `"${v.replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-business-contacts-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  const exportClientContactsCSV = () => {
+    const clientMap = new Map<string, Record<string, string>>();
+    for (const doc of documents) {
+      const r = doc.recipientInfo as Record<string, unknown>;
+      if (!r?.businessName) continue;
+      const name = String(r.businessName);
+      if (clientMap.has(name)) continue;
+      const addr = (r.address as Record<string, string>) || {};
+      clientMap.set(name, {
+        businessName: name,
+        contactName: String(r.contactName ?? ""),
+        email: String(r.email ?? ""),
+        phone: String(r.phone ?? ""),
+        address: [addr.line1, addr.city, addr.postalCode, addr.country].filter(Boolean).join(", "),
+      });
+    }
+    const headers = ["Client Name", "Contact Name", "Email", "Phone", "Address"];
+    const rows = Array.from(clientMap.values()).map((c) =>
+      [c.businessName, c.contactName, c.email, c.phone, c.address]
+        .map((v) => `"${v.replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-client-contacts-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  const exportLineItemsCSV = () => {
+    const headers = [
+      "Document Number", "Document Type", "Currency",
+      "Description", "Quantity", "Unit Price", "Tax Rate %", "Discount", "Line Total",
+      "Sender Business", "Created At",
+    ];
+    const rows: string[] = [];
+    for (const doc of documents) {
+      const s = doc.senderInfo as Record<string, string>;
+      for (const li of doc.lineItems) {
+        rows.push(
+          [
+            doc.documentNumber, doc.type, doc.currency,
+            li.description, li.quantity, li.unitPrice, li.taxRate ?? 0, li.discount ?? 0, li.lineTotal,
+            s?.businessName || "", doc.createdAt,
+          ]
+            .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+            .join(",")
+        );
+      }
+    }
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-line-items-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
+  const exportSessionsCSV = () => {
+    const headers = [
+      "Session ID", "Document Type", "Started At", "Last Activity", "Duration (s)",
+      "Completed", "Completed At", "Document ID",
+      "Field Changes", "IP Country", "Referral Source", "Page URL",
+      "Device Mobile", "Screen Width", "Screen Height", "Language",
+    ];
+    const rows = sessions.map((s) => {
+      const duration = Math.floor(
+        (new Date(s.completedAt || s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 1000
+      );
+      const d = s.deviceInfo || {};
+      return [
+        s.id, s.documentType || "", s.startedAt, s.lastActivityAt, duration,
+        s.completed ? "Yes" : "No", s.completedAt || "", s.documentId || "",
+        s.fieldLogCount, s.ipCountry || "", s.referralSource || "", s.pageUrl || "",
+        (d as Record<string, unknown>).mobile ? "Yes" : "No",
+        String((d as Record<string, unknown>).screenWidth ?? ""),
+        String((d as Record<string, unknown>).screenHeight ?? ""),
+        String((d as Record<string, unknown>).language ?? ""),
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    downloadBlob(blob, `invoiceify-sessions-${new Date().toISOString().split("T")[0]}.csv`);
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -278,13 +408,16 @@ export default function AdminExportClient({
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Total Documents", value: stats.totalDocuments },
           { label: "Total Value", value: formatCurrency(stats.totalValue) },
           { label: "Registered Users", value: stats.totalUsers },
+          { label: "Form Sessions", value: stats.totalSessions },
           { label: "Guest Docs", value: stats.guestDocuments },
           { label: "User Docs", value: stats.userDocuments },
+          { label: "Sessions Completed", value: stats.completedSessions },
+          { label: "Field Changes", value: stats.totalFieldLogs.toLocaleString() },
         ].map((s) => (
           <div key={s.label} className="bg-gray-900 rounded-xl border border-gray-800 p-4 text-center">
             <p className="text-xs text-gray-500 uppercase tracking-wider">{s.label}</p>
@@ -388,6 +521,102 @@ export default function AdminExportClient({
             className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 rounded-lg transition cursor-pointer"
           >
             Download Users CSV
+          </button>
+        </div>
+
+        {/* Business Contacts CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Business Contacts</h3>
+              <p className="text-xs text-gray-500">All sender businesses (deduplicated)</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Unique business contact list: name, email, phone, address, tax ID. Extracted from all document senders.
+          </p>
+          <button
+            onClick={exportBusinessContactsCSV}
+            className="w-full bg-cyan-500 hover:bg-cyan-600 text-black font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Business Contacts CSV
+          </button>
+        </div>
+
+        {/* Client Contacts CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Client Contacts</h3>
+              <p className="text-xs text-gray-500">All recipient clients (deduplicated)</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Unique client contact list: name, email, phone, address. Extracted from all document recipients.
+          </p>
+          <button
+            onClick={exportClientContactsCSV}
+            className="w-full bg-pink-500 hover:bg-pink-600 text-white font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Client Contacts CSV
+          </button>
+        </div>
+
+        {/* Line Items CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Line Items CSV</h3>
+              <p className="text-xs text-gray-500">Every line item from every document</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            One row per line item across all documents: description, quantity, unit price, tax, discount, line total, linked to document number and sender.
+          </p>
+          <button
+            onClick={exportLineItemsCSV}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-black font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Line Items CSV
+          </button>
+        </div>
+
+        {/* Sessions CSV */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Sessions CSV</h3>
+              <p className="text-xs text-gray-500">All form sessions (completed + abandoned)</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Every form session: duration, completion status, field change count, device info, referral source. Includes abandoned sessions for funnel analysis.
+          </p>
+          <button
+            onClick={exportSessionsCSV}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition cursor-pointer"
+          >
+            Download Sessions CSV
           </button>
         </div>
       </div>

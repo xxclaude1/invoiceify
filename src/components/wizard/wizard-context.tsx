@@ -6,7 +6,10 @@ import {
   useReducer,
   ReactNode,
   useCallback,
+  useRef,
+  useEffect,
 } from "react";
+import { useSessionLogger } from "@/lib/session-logger";
 import {
   DocumentType,
   IndustryPreset,
@@ -210,22 +213,113 @@ interface WizardContextValue {
   taxTotal: number;
   discountTotal: number;
   grandTotal: number;
+  completeSession: (documentId?: string) => Promise<void>;
+  getSessionId: () => string | null;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
 
 export function WizardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
+  const [state, rawDispatch] = useReducer(wizardReducer, initialState);
+  const { ensureSession, logField, updateSession, completeSession, getSessionId } = useSessionLogger();
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Extract field name from action for logging
+  const getFieldInfoFromAction = useCallback((action: WizardAction): { name: string; value: string } | null => {
+    switch (action.type) {
+      case "SET_SENDER_INFO": {
+        const entries = Object.entries(action.info);
+        if (entries.length === 0) return null;
+        const [key, val] = entries[0];
+        if (key === "address" && typeof val === "object" && val !== null) {
+          // Log changed address sub-fields
+          const addr = val as unknown as Record<string, string>;
+          // Find which sub-field actually changed by comparing
+          for (const [subKey, subVal] of Object.entries(addr)) {
+            if (subVal) return { name: `senderInfo.address.${subKey}`, value: String(subVal) };
+          }
+          return null;
+        }
+        return { name: `senderInfo.${key}`, value: String(val ?? "") };
+      }
+      case "SET_RECIPIENT_INFO": {
+        const entries = Object.entries(action.info);
+        if (entries.length === 0) return null;
+        const [key, val] = entries[0];
+        if (key === "address" && typeof val === "object" && val !== null) {
+          const addr = val as unknown as Record<string, string>;
+          for (const [subKey, subVal] of Object.entries(addr)) {
+            if (subVal) return { name: `recipientInfo.address.${subKey}`, value: String(subVal) };
+          }
+          return null;
+        }
+        return { name: `recipientInfo.${key}`, value: String(val ?? "") };
+      }
+      case "SET_FIELD":
+        return { name: action.field, value: action.value };
+      case "SET_DOCUMENT_TYPE":
+        return { name: "documentType", value: action.documentType };
+      case "SET_INDUSTRY_PRESET":
+        return { name: "industryPreset", value: action.preset ?? "" };
+      case "UPDATE_LINE_ITEM":
+        return { name: `lineItem.${action.field}`, value: String(action.value ?? "") };
+      case "SET_EXTRA_FIELDS": {
+        const entries = Object.entries(action.fields);
+        if (entries.length === 0) return null;
+        const [key, val] = entries[0];
+        return { name: `extraFields.${key}`, value: String(val ?? "") };
+      }
+      case "SET_TEMPLATE":
+        return { name: "templateId", value: action.templateId };
+      default:
+        return null;
+    }
+  }, []);
+
+  // Wrapped dispatch that logs field changes
+  const dispatch: React.Dispatch<WizardAction> = useCallback(
+    (action: WizardAction) => {
+      rawDispatch(action);
+
+      // Don't log navigation/reset actions
+      if (action.type === "SET_STEP" || action.type === "RESET" || action.type === "ADD_LINE_ITEM" || action.type === "REMOVE_LINE_ITEM" || action.type === "SET_LINE_ITEMS") {
+        return;
+      }
+
+      // Ensure session exists, then log the field
+      const fieldInfo = getFieldInfoFromAction(action);
+      if (fieldInfo && fieldInfo.value) {
+        const docType = action.type === "SET_DOCUMENT_TYPE" ? action.documentType : undefined;
+        ensureSession(docType).then(() => {
+          logField(fieldInfo.name, fieldInfo.value);
+        });
+      }
+    },
+    [ensureSession, logField, getFieldInfoFromAction]
+  );
+
+  // Periodically save form snapshot (every 30 seconds of activity)
+  useEffect(() => {
+    if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    snapshotTimerRef.current = setTimeout(() => {
+      if (getSessionId()) {
+        updateSession({ formSnapshot: state, documentType: state.documentType });
+      }
+    }, 30000);
+    return () => {
+      if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    };
+  }, [state, getSessionId, updateSession]);
 
   const nextStep = useCallback(() => {
     if (state.step < 4) {
-      dispatch({ type: "SET_STEP", step: (state.step + 1) as 1 | 2 | 3 | 4 });
+      rawDispatch({ type: "SET_STEP", step: (state.step + 1) as 1 | 2 | 3 | 4 });
     }
   }, [state.step]);
 
   const prevStep = useCallback(() => {
     if (state.step > 1) {
-      dispatch({ type: "SET_STEP", step: (state.step - 1) as 1 | 2 | 3 | 4 });
+      rawDispatch({ type: "SET_STEP", step: (state.step - 1) as 1 | 2 | 3 | 4 });
     }
   }, [state.step]);
 
@@ -264,6 +358,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         taxTotal,
         discountTotal,
         grandTotal,
+        completeSession,
+        getSessionId,
       }}
     >
       {children}

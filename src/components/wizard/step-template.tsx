@@ -16,14 +16,14 @@ const TEMPLATES = [
 ];
 
 export default function StepTemplate() {
-  const { state, dispatch, subtotal, taxTotal, discountTotal, grandTotal } = useWizard();
+  const { state, dispatch, subtotal, taxTotal, discountTotal, grandTotal, completeSession } = useWizard();
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
       // 1) Save full document to the database
-      await fetch("/api/documents", {
+      const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -48,10 +48,16 @@ export default function StepTemplate() {
         }),
       });
 
-      // 2) Generate PDF blob
+      const docData = await res.json();
+      const documentId = docData.data?.id;
+
+      // 2) Mark session as completed with the document ID
+      await completeSession(documentId);
+
+      // 3) Generate PDF blob
       const blob = await generatePDFBlob(state, subtotal, taxTotal, discountTotal, grandTotal);
 
-      // 3) Trigger browser download
+      // 4) Trigger browser download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

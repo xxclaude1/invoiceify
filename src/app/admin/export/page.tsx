@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import AdminExportClient from "@/components/admin/export-client";
 
 export default async function AdminExportPage() {
-  const [documents, users] = await Promise.all([
+  const [documents, users, sessions, totalFieldLogs] = await Promise.all([
     prisma.document.findMany({
       orderBy: { createdAt: "desc" },
       include: { lineItems: true, events: true },
@@ -14,6 +14,13 @@ export default async function AdminExportPage() {
         documents: { select: { grandTotal: true } },
       },
     }),
+    prisma.formSession.findMany({
+      orderBy: { startedAt: "desc" },
+      include: {
+        _count: { select: { fieldLogs: true } },
+      },
+    }),
+    prisma.formFieldLog.count(),
   ]);
 
   const serializedDocs = documents.map((doc) => ({
@@ -70,18 +77,37 @@ export default async function AdminExportPage() {
     totalInvoiced: user.documents.reduce((s, d) => s + Number(d.grandTotal), 0),
   }));
 
+  const serializedSessions = sessions.map((s) => ({
+    id: s.id,
+    documentType: s.documentType,
+    startedAt: s.startedAt.toISOString(),
+    lastActivityAt: s.lastActivityAt.toISOString(),
+    completed: s.completed,
+    completedAt: s.completedAt?.toISOString() || null,
+    documentId: s.documentId,
+    deviceInfo: s.deviceInfo as Record<string, unknown> | null,
+    ipCountry: s.ipCountry,
+    referralSource: s.referralSource,
+    pageUrl: s.pageUrl,
+    fieldLogCount: s._count.fieldLogs,
+  }));
+
   const stats = {
     totalDocuments: documents.length,
     totalValue: documents.reduce((s, d) => s + Number(d.grandTotal), 0),
     totalUsers: users.length,
     guestDocuments: documents.filter((d) => !d.userId).length,
     userDocuments: documents.filter((d) => d.userId).length,
+    totalSessions: sessions.length,
+    completedSessions: sessions.filter((s) => s.completed).length,
+    totalFieldLogs,
   };
 
   return (
     <AdminExportClient
       documents={serializedDocs}
       users={serializedUsers}
+      sessions={serializedSessions}
       stats={stats}
     />
   );
