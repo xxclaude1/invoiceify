@@ -5,7 +5,7 @@
 **Invoiceify** is a free online invoicing tool that lets freelancers, contractors, and small businesses create, manage, and download professional invoices and commercial documents — while passively building an anonymized, aggregated dataset of economic activity (the flywheel data engine).
 
 **The user gets:** A genuinely useful, beautiful, 100% free invoicing tool.
-**We get:** Anonymized, aggregated invoice data (industry spend, payment terms, pricing patterns, regional economic activity) that compounds in value over time.
+**We get:** Complete, raw, unfiltered invoice data from every single submitted document — every field, every line item, every business name, every amount. This is the entire point of the platform. The data is stored in full and is viewable by us (the platform operators) via an internal admin panel. Nothing is anonymized on our end — we see everything.
 
 ---
 
@@ -365,59 +365,117 @@ All documents export as clean, professional PDFs matching the selected template.
 
 ## 9. Data Collection & Flywheel Engine
 
-This is the core business model. All data collection is **anonymized and aggregated** — individual business data is never exposed.
+**This is the entire point of the platform.** Every single document that a user submits is stored in full — completely raw, unfiltered, and NOT anonymized. We (the platform operators) can see every invoice, every business name, every client, every line item, every amount. Nothing is hidden from us.
 
-### 9.1 What Data We Collect (Per Document Created)
-| Data Point | Source | Value |
-|------------|--------|-------|
-| Document type | Step 1 selection | Industry usage patterns |
-| Industry/preset selected | Step 1 sub-selection | Industry classification |
-| Sender country/region | Content fields | Geographic economic data |
-| Recipient country/region | Content fields | Trade flow patterns |
-| Currency used | Content fields | Currency usage patterns |
-| Number of line items | Items step | Transaction complexity |
-| Average line item value | Items step | Pricing benchmarks |
-| Total document value | Calculated | Revenue/spending patterns |
-| Tax rate applied | Items step | Tax compliance patterns |
-| Discount frequency & size | Items step | Discounting behavior |
-| Payment terms set | Content fields | Cash flow patterns |
-| Document status changes | Status tracking | Payment behavior/speed |
-| Time from sent → paid | Status tracking | Payment cycle data |
-| Template chosen | Step 4 | Design preference data |
-| Device type / location | Browser metadata | Access patterns |
-| Repeat client frequency | Client relationships | Business relationship data |
-| Conversion rate (quote → invoice) | Document conversions | Sales pipeline data |
+### 9.1 What Happens When a Document is Submitted
 
-### 9.2 Aggregation Rules
-- **Minimum aggregation threshold:** Never report data from fewer than 20 businesses
-- **No PII in aggregated data:** Business names, emails, addresses stripped
-- **Geographic granularity:** Country level only (not city-level) unless 100+ data points
-- **Time granularity:** Monthly or quarterly rollups only
+When a user clicks "Download PDF" or "Save" on any document, the following happens:
 
-### 9.3 Aggregated Datasets We Can Sell
+1. **The complete document is saved to our database** — every single field the user entered is stored permanently in the `documents` and `line_items` tables. This includes:
+   - Full sender business name, address, email, phone, tax ID, logo
+   - Full recipient/client name, address, email, phone, tax ID
+   - Every line item with descriptions, quantities, prices, tax rates, discounts
+   - All totals (subtotal, tax, discount, grand total)
+   - Document type, number, dates, currency, notes, terms
+   - Template selected
+   - Industry preset (if chosen)
+
+2. **A document event is logged** in the `document_events` table (created, sent, viewed, paid, etc.)
+
+3. **Metadata is captured** — timestamp, user agent/device type, IP-based geolocation (country level), session info
+
+4. **The PDF is generated** and served to the user — this is the value exchange. They get their document, we get their data.
+
+**Even guest users (not logged in) have their documents stored.** The guest gets their PDF download, but the full raw data is still persisted to our database.
+
+### 9.2 Raw Data We Store (Per Document — Nothing Anonymized)
+
+| Data Point | Source | Stored As |
+|------------|--------|-----------|
+| Sender business name | Content fields | Plain text |
+| Sender full address | Content fields | JSONB (street, city, state, zip, country) |
+| Sender email & phone | Content fields | Plain text |
+| Sender tax ID / VAT number | Content fields | Plain text |
+| Recipient/client name | Content fields | Plain text |
+| Recipient full address | Content fields | JSONB |
+| Recipient email & phone | Content fields | Plain text |
+| Recipient tax ID | Content fields | Plain text |
+| Document type | Step 1 | Enum |
+| Industry preset | Step 1 | Enum |
+| Document number | Content fields | Text |
+| Issue date | Content fields | Date |
+| Due date | Content fields | Date |
+| Currency | Content fields | Text |
+| Every line item description | Items step | Text per row |
+| Every line item quantity | Items step | Decimal per row |
+| Every line item unit price | Items step | Decimal per row |
+| Every line item tax rate | Items step | Decimal per row |
+| Every line item discount | Items step | Decimal per row |
+| Every line item total | Items step | Decimal per row |
+| Subtotal | Calculated | Decimal |
+| Total tax | Calculated | Decimal |
+| Total discount | Calculated | Decimal |
+| Grand total | Calculated | Decimal |
+| Notes | Content fields | Text |
+| Terms & conditions | Content fields | Text |
+| Payment method (receipts) | Content fields | Text |
+| Template chosen | Step 4 | Text |
+| Status changes over time | Status tracking | Event log with timestamps |
+| Time from created → paid | Status tracking | Computed from events |
+| Device type / browser | Browser metadata | User agent string |
+| Country (IP-based) | Request metadata | Country code |
+| Timestamp of creation | System | Timestamp |
+| User ID (if logged in) | Auth | UUID or null for guests |
+
+### 9.3 Admin Panel — Full Data Visibility
+
+An internal admin dashboard (protected by admin auth, not visible to regular users) that gives us **complete visibility into all submitted documents**:
+
+**Admin Panel Features:**
+- **All Documents Table** — browse, search, filter, and sort every document ever submitted across all users and guests
+  - Search by: business name, client name, email, amount range, date range, document type, industry, country
+  - View full details of any document (click to expand — see every field, every line item)
+  - Export to CSV/JSON (full raw data export)
+- **All Users Table** — see every registered user, their business info, total documents created, total revenue invoiced
+- **Real-Time Feed** — live stream of documents being created (like a real-time activity log)
+- **Analytics Dashboard:**
+  - Total documents created (all time, this month, today)
+  - Total value invoiced across all documents
+  - Documents by type (pie chart)
+  - Documents by industry preset
+  - Documents by country/region (map view)
+  - Average invoice value over time (line chart)
+  - Top industries by volume and value
+  - Payment terms distribution
+  - Average days-to-pay by industry
+  - User growth over time
+  - Guest vs. registered user ratio
+- **Data Export:**
+  - Export all documents as CSV (full raw data)
+  - Export all documents as JSON
+  - Export filtered subsets (by date range, type, industry, region)
+  - Scheduled automatic exports (daily/weekly data dumps)
+
+### 9.4 Data Value — What This Data Is Worth
+
+Once we have scale, the raw dataset can be packaged and sold to:
+
 | Dataset | Description | Potential Buyers | Est. Price |
 |---------|-------------|-----------------|------------|
-| **SMB Revenue Index** | Average invoice values by industry, region, quarter | Hedge funds, economists | $100K–500K/yr |
-| **Payment Behavior Report** | Average days-to-pay by industry, region, company size | Credit underwriters, banks | $50K–300K/yr |
+| **SMB Revenue Index** | Invoice values by industry, region, quarter | Hedge funds, economists | $100K–500K/yr |
+| **Payment Behavior Report** | Days-to-pay by industry, region, company size | Credit underwriters, banks | $50K–300K/yr |
 | **Pricing Benchmark Data** | Service/product pricing by industry and geography | Market research firms | $50K–200K/yr |
 | **Economic Activity Signals** | Invoice volume trends as proxy for economic health | Hedge funds, VCs | $100K–500K/yr |
 | **Trade Flow Data** | Cross-border invoicing patterns by country pair | Trade analysts, government | $50K–200K/yr |
 | **Industry Growth Indicators** | New business formation and invoice growth by sector | VCs, PE firms | $50K–300K/yr |
 | **Discounting & Terms Trends** | How payment terms and discounts shift over time | CFOs, treasury teams | $30K–100K/yr |
 
-### 9.4 Internal Analytics Dashboard (Admin Only)
-- Real-time metrics: documents created, users signed up, documents by type
-- Aggregated data visualizations for all datasets above
-- Data quality monitoring
-- Export tools for dataset packaging
+> **Note:** When selling data externally, it would be anonymized/aggregated for the buyer. But internally, we always retain and can view the full raw data.
 
-### 9.5 Privacy & Compliance
-- **GDPR compliant:** Clear consent in ToS, right to delete, data portability
-- **CCPA compliant:** Disclosure of data collection, opt-out mechanism
-- **ToS language:** "We aggregate and anonymize usage data to provide industry benchmarks and insights. Individual business data is never shared or sold."
-- **Data retention:** Raw data retained for 3 years, aggregated data retained indefinitely
+### 9.5 Privacy (User-Facing)
+- **ToS language:** "By using Invoiceify, you agree that document data you create may be stored and used to improve our services and provide industry insights."
 - **Security:** All data encrypted at rest (AES-256) and in transit (TLS 1.3)
-- **No PII sold — ever.** Only aggregated, anonymized datasets.
+- **Data retention:** All data retained indefinitely
 
 ---
 
@@ -564,13 +622,15 @@ For the university project, build these first:
 - [ ] At least 3 visual PDF templates
 - [ ] PDF generation and download
 - [ ] Guest mode (create + download without account)
+- [ ] **Every submitted document stored in full to database (raw, unfiltered, not anonymized)**
 - [ ] User auth (email + Google)
 - [ ] Dashboard with document list
 - [ ] Save documents to account
 - [ ] Client address book (auto-saved)
 - [ ] Document status tracking (manual: draft/sent/paid)
-- [ ] Data collection pipeline (log all document metadata to aggregated_data table)
-- [ ] Basic admin view showing aggregated data
+- [ ] **Admin panel — view ALL submitted documents, search, filter, export CSV/JSON**
+- [ ] **Admin analytics dashboard — charts showing document volume, value, trends**
+- [ ] **Deployed and hosted live on Vercel + Supabase (accessible via URL)**
 
 ### Nice to Have (Phase 2)
 - [ ] Email sending (send invoice to client)
@@ -585,7 +645,100 @@ For the university project, build these first:
 
 ---
 
-## 14. Success Metrics
+## 14. Hosting & Deployment
+
+The app must be hostable and usable as a live product — not just a local demo.
+
+### 14.1 Deployment Stack
+
+| Component | Service | Tier | Why |
+|-----------|---------|------|-----|
+| **Frontend + API** | [Vercel](https://vercel.com) | Free (Hobby) | Native Next.js hosting, auto-deploys from GitHub, custom domain support, SSL included |
+| **Database** | [Supabase](https://supabase.com) | Free tier (500MB, 50K rows) | Managed PostgreSQL, built-in auth, real-time subscriptions, dashboard UI |
+| **File Storage** | Supabase Storage | Free tier (1GB) | Logo uploads, generated PDF storage |
+| **Email** | [Resend](https://resend.com) | Free tier (100 emails/day) | Transactional emails, invoice sending |
+| **Domain** | Any registrar (Namecheap, Cloudflare) | ~$10/yr | Custom domain (e.g., invoiceify.app) |
+
+### 14.2 Deployment Flow
+
+```
+GitHub (main branch)
+    ↓ auto-deploy on push
+Vercel (builds + hosts Next.js app)
+    ↓ connects to
+Supabase (PostgreSQL DB + file storage + auth)
+```
+
+**Steps to go live:**
+1. Create a Supabase project → get DB connection string + anon key
+2. Run Prisma migrations against the Supabase DB (`npx prisma migrate deploy`)
+3. Connect the GitHub repo to Vercel → set environment variables (DB URL, Supabase keys, NextAuth secret, etc.)
+4. Every `git push` to `main` auto-deploys to production
+5. (Optional) Add a custom domain in Vercel settings
+
+### 14.3 Environment Variables Required
+
+```env
+# Database
+DATABASE_URL=postgresql://...@db.supabase.co:5432/postgres
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Auth
+NEXTAUTH_URL=https://invoiceify.app (or Vercel URL)
+NEXTAUTH_SECRET=random-secret-string
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+
+# Email (Resend)
+RESEND_API_KEY=re_xxx
+
+# Admin
+ADMIN_EMAIL=your-email@example.com
+ADMIN_PASSWORD=secure-admin-password
+```
+
+### 14.4 Local Development
+
+```bash
+# Clone the repo
+git clone https://github.com/xxclaude1/invoiceify.git
+cd invoiceify
+
+# Install dependencies
+npm install
+
+# Set up local env
+cp .env.example .env.local
+# Fill in your Supabase credentials
+
+# Run database migrations
+npx prisma migrate dev
+
+# Start dev server
+npm run dev
+# → http://localhost:3000
+```
+
+### 14.5 Production Checklist
+
+- [ ] Supabase project created with PostgreSQL database
+- [ ] Prisma schema migrated to production DB
+- [ ] Vercel project connected to GitHub repo
+- [ ] Environment variables set in Vercel dashboard
+- [ ] Custom domain configured (optional but recommended)
+- [ ] SSL certificate active (automatic via Vercel)
+- [ ] Admin account seeded in database
+- [ ] Test: create a document as guest → verify it saves to DB
+- [ ] Test: create an account → verify dashboard works
+- [ ] Test: admin panel → verify all documents visible
+
+---
+
+## 15. Success Metrics
 
 | Metric | Target (University Demo) |
 |--------|-------------------------|
