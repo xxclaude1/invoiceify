@@ -160,7 +160,11 @@ export default function AdminExportClient({
       "Notes", "Terms",
       "Template", "Industry Preset",
       "User ID", "Guest or User",
-      "IP Country", "User Agent", "Session ID",
+      "IP Country", "IP Address",
+      "Detected Industry", "Revenue Range",
+      "Sender Email Domain", "Recipient Email Domain",
+      "Avg Line Item Price",
+      "User Agent", "Session ID",
       "Created At",
     ];
 
@@ -187,7 +191,11 @@ export default function AdminExportClient({
         doc.notes || "", doc.terms || "",
         doc.templateId, doc.industryPreset || "",
         doc.userId || "", doc.userId ? "User" : "Guest",
-        doc.ipCountry || "", doc.userAgent || "", doc.sessionId || "",
+        doc.ipCountry || "", doc.ipAddress || "",
+        doc.detectedIndustry || "", doc.revenueRange || "",
+        doc.senderEmailDomain || "", doc.recipientEmailDomain || "",
+        doc.avgLineItemPrice ?? "",
+        doc.userAgent || "", doc.sessionId || "",
         doc.createdAt,
       ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
     });
@@ -274,6 +282,12 @@ export default function AdminExportClient({
       report += `  Source:          ${doc.userId ? "Logged-in User" : "Guest"}\n`;
       report += `  User ID:         ${doc.userId || "N/A"}\n`;
       report += `  IP Country:      ${doc.ipCountry || "N/A"}\n`;
+      report += `  IP Address:      ${doc.ipAddress || "N/A"}\n`;
+      report += `  Detected Industry: ${doc.detectedIndustry || "N/A"}\n`;
+      report += `  Revenue Range:   ${doc.revenueRange || "N/A"}\n`;
+      report += `  Sender Domain:   ${doc.senderEmailDomain || "N/A"}\n`;
+      report += `  Recipient Domain: ${doc.recipientEmailDomain || "N/A"}\n`;
+      report += `  Avg Item Price:  ${doc.avgLineItemPrice != null ? `$${doc.avgLineItemPrice.toFixed(2)}` : "N/A"}\n`;
       report += `  Session:         ${doc.sessionId || "N/A"}\n\n`;
 
       report += `  SENDER:\n`;
@@ -394,22 +408,33 @@ export default function AdminExportClient({
     const headers = [
       "Session ID", "Document Type", "Started At", "Last Activity", "Duration (s)",
       "Completed", "Completed At", "Document ID",
-      "Field Changes", "IP Country", "Referral Source", "Page URL",
+      "Field Changes", "IP Country", "IP Address",
+      "Geo Country", "Geo Region", "Geo City", "Geo ISP", "Geo Org", "Geo Timezone",
+      "Referral Source", "Page URL",
+      "Traffic Source", "UTM Source", "UTM Medium", "UTM Campaign", "UTM Term", "UTM Content",
+      "Returning Visitor", "Fingerprint Hash",
       "Device Mobile", "Screen Width", "Screen Height", "Language",
     ];
     const rows = sessions.map((s) => {
       const duration = Math.floor(
         (new Date(s.completedAt || s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 1000
       );
-      const d = s.deviceInfo || {};
+      const d = (s.deviceInfo || {}) as Record<string, unknown>;
+      const g = (s.ipGeo || {}) as Record<string, string>;
       return [
         s.id, s.documentType || "", s.startedAt, s.lastActivityAt, duration,
         s.completed ? "Yes" : "No", s.completedAt || "", s.documentId || "",
-        s.fieldLogCount, s.ipCountry || "", s.referralSource || "", s.pageUrl || "",
-        (d as Record<string, unknown>).mobile ? "Yes" : "No",
-        String((d as Record<string, unknown>).screenWidth ?? ""),
-        String((d as Record<string, unknown>).screenHeight ?? ""),
-        String((d as Record<string, unknown>).language ?? ""),
+        s.fieldLogCount, s.ipCountry || "", s.ipAddress || "",
+        g?.country || "", g?.region || "", g?.city || "",
+        g?.isp || "", g?.org || "", g?.timezone || "",
+        s.referralSource || "", s.pageUrl || "",
+        s.trafficSource || "", s.utmSource || "", s.utmMedium || "",
+        s.utmCampaign || "", s.utmTerm || "", s.utmContent || "",
+        s.isReturning ? "Yes" : "No", s.fingerprintHash || "",
+        d.mobile ? "Yes" : "No",
+        String(d.screenWidth ?? ""),
+        String(d.screenHeight ?? ""),
+        String(d.language ?? ""),
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(",");
@@ -423,22 +448,36 @@ export default function AdminExportClient({
   const exportFullXLSX = () => {
     const wb = XLSX.utils.book_new();
 
-    // Documents sheet
+    // Documents sheet — ALL fields
     const docRows = documents.map((doc) => {
       const s = doc.senderInfo as Record<string, string>;
       const r = doc.recipientInfo as Record<string, string>;
+      const sAddr = (doc.senderInfo as Record<string, Record<string, string>>)?.address || {};
+      const rAddr = (doc.recipientInfo as Record<string, Record<string, string>>)?.address || {};
       return {
+        "ID": doc.id,
         "Doc Number": doc.documentNumber, Type: doc.type, Status: doc.status,
         Currency: doc.currency, Subtotal: doc.subtotal, Tax: doc.taxTotal,
         Discount: doc.discountTotal, "Grand Total": doc.grandTotal,
         "Issue Date": doc.issueDate, "Due Date": doc.dueDate || "",
         "Sender Business": s?.businessName || "", "Sender Email": s?.email || "",
+        "Sender Phone": s?.phone || "", "Sender Tax ID": s?.taxId || "",
+        "Sender Address": [sAddr?.line1, sAddr?.city, sAddr?.postalCode, sAddr?.country].filter(Boolean).join(", "),
         "Recipient Business": r?.businessName || "", "Recipient Email": r?.email || "",
-        "Industry": doc.detectedIndustry || "", "Revenue Range": doc.revenueRange || "",
+        "Recipient Phone": r?.phone || "",
+        "Recipient Address": [rAddr?.line1, rAddr?.city, rAddr?.postalCode, rAddr?.country].filter(Boolean).join(", "),
+        "Line Items": doc.lineItemCount || doc.lineItems.length,
+        "Line Items Detail": doc.lineItems.map((li) => `${li.description} (${li.quantity}x$${li.unitPrice}=$${li.lineTotal})`).join(" | "),
+        "Avg Item Price": doc.avgLineItemPrice ?? "",
+        Notes: doc.notes || "", Terms: doc.terms || "",
+        Template: doc.templateId, "Industry Preset": doc.industryPreset || "",
+        "Detected Industry": doc.detectedIndustry || "", "Revenue Range": doc.revenueRange || "",
         "Sender Domain": doc.senderEmailDomain || "", "Recipient Domain": doc.recipientEmailDomain || "",
-        "Line Items": doc.lineItemCount || doc.lineItems.length, "Avg Item Price": doc.avgLineItemPrice ?? "",
-        "Country": doc.ipCountry || "", "IP": doc.ipAddress || "",
-        "Guest/User": doc.userId ? "User" : "Guest", "Created": doc.createdAt,
+        "Country": doc.ipCountry || "", "IP Address": doc.ipAddress || "",
+        "User Agent": doc.userAgent || "",
+        "User ID": doc.userId || "", "Guest/User": doc.userId ? "User" : "Guest",
+        "Session ID": doc.sessionId || "",
+        "Created": doc.createdAt,
       };
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(docRows), "Documents");
@@ -452,19 +491,32 @@ export default function AdminExportClient({
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(userRows), "Users");
 
-    // Sessions sheet
+    // Sessions sheet — ALL fields
     const sessRows = sessions.map((s) => {
       const duration = Math.floor(
         (new Date(s.completedAt || s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 1000
       );
+      const g = (s.ipGeo || {}) as Record<string, string>;
+      const d = (s.deviceInfo || {}) as Record<string, unknown>;
       return {
         ID: s.id, Type: s.documentType || "", Started: s.startedAt,
-        "Duration (s)": duration, Completed: s.completed ? "Yes" : "No",
-        "Field Changes": s.fieldLogCount, Returning: s.isReturning ? "Yes" : "No",
-        "Traffic Source": s.trafficSource || "", "UTM Source": s.utmSource || "",
-        "UTM Medium": s.utmMedium || "", "UTM Campaign": s.utmCampaign || "",
-        Country: s.ipCountry || "", IP: s.ipAddress || "",
-        "Fingerprint": s.fingerprintHash?.slice(0, 16) || "",
+        "Last Activity": s.lastActivityAt, "Duration (s)": duration,
+        Completed: s.completed ? "Yes" : "No", "Completed At": s.completedAt || "",
+        "Document ID": s.documentId || "",
+        "Field Changes": s.fieldLogCount,
+        Returning: s.isReturning ? "Yes" : "No",
+        "Fingerprint Hash": s.fingerprintHash || "",
+        "Traffic Source": s.trafficSource || "",
+        "UTM Source": s.utmSource || "", "UTM Medium": s.utmMedium || "",
+        "UTM Campaign": s.utmCampaign || "", "UTM Term": s.utmTerm || "", "UTM Content": s.utmContent || "",
+        "Referral": s.referralSource || "", "Page URL": s.pageUrl || "",
+        Country: s.ipCountry || "", "IP Address": s.ipAddress || "",
+        "Geo Country": g?.country || "", "Geo Region": g?.region || "",
+        "Geo City": g?.city || "", "Geo ISP": g?.isp || "",
+        "Geo Org": g?.org || "", "Geo Timezone": g?.timezone || "",
+        "Device Mobile": d.mobile ? "Yes" : "No",
+        "Screen": d.screenWidth ? `${d.screenWidth}x${d.screenHeight}` : "",
+        "Language": String(d.language ?? ""),
       };
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sessRows), "Sessions");
