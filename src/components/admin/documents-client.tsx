@@ -24,6 +24,7 @@ interface DocEvent {
 
 interface FormSession {
   id: string;
+  documentType: string | null;
   startedAt: string;
   lastActivityAt: string;
   completed: boolean;
@@ -43,7 +44,16 @@ interface FormSession {
   utmTerm: string | null;
   utmContent: string | null;
   behavioral: Record<string, unknown> | null;
+  mouseHeatmap: unknown;
+  clickMap: unknown;
+  fingerprint: Record<string, unknown> | null;
+  preferredLangs: string | null;
+  fullReferrer: string | null;
+  landingPage: string | null;
+  searchQuery: string | null;
+  socialPlatform: string | null;
   fieldLogCount: number;
+  userAgent: string | null;
 }
 
 interface Doc {
@@ -127,6 +137,10 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
   const fsGeo = fs?.ipGeo as Record<string, string> | null;
   const beh = fs?.behavioral as Record<string, unknown> | null;
   const dev = fs?.deviceInfo as Record<string, unknown> | null;
+  const fp = fs?.fingerprint as Record<string, unknown> | null;
+
+  // Merge: use geo from doc first, fall back to session geo
+  const effectiveGeo = geo || fsGeo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto py-8 px-4" onClick={onClose}>
@@ -145,6 +159,7 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
             <span className={`text-xs px-2 py-1 rounded ${doc.userId ? "bg-blue-500/20 text-blue-400" : "bg-gray-700 text-gray-400"}`}>
               {doc.userId ? "User" : "Guest"}
             </span>
+            {fs?.isReturning && <span className="text-xs px-2 py-1 rounded bg-amber-500/20 text-amber-400">Returning</span>}
             <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-lg transition cursor-pointer">
               <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -154,7 +169,7 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Row 1: Document Info + Financial */}
+          {/* Row 1: Document Info + Financial + Network */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Document Details */}
             <div className="bg-gray-800/40 rounded-xl p-4">
@@ -171,10 +186,11 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
                 <InfoRow label="Updated" value={new Date(doc.updatedAt).toLocaleString()} />
                 <InfoRow label="User ID" value={doc.userId} />
                 <InfoRow label="Session UUID" value={doc.sessionId} />
+                <InfoRow label="Form Session ID" value={doc.formSessionId || fs?.id} />
               </div>
             </div>
 
-            {/* Financial Totals */}
+            {/* Financial Totals + Business Intel */}
             <div className="bg-gray-800/40 rounded-xl p-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Financial</h3>
               <div className="space-y-0">
@@ -197,28 +213,26 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
               </div>
             </div>
 
-            {/* Network & Tracking */}
+            {/* Network & Location — merged from doc + session */}
             <div className="bg-gray-800/40 rounded-xl p-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Network & Location</h3>
               <div className="space-y-0">
                 <InfoRow label="IP Address" value={doc.ipAddress} />
-                <InfoRow label="IP Country" value={doc.ipCountry} />
-                {geo && (
-                  <>
-                    <InfoRow label="City" value={geo.city} />
-                    <InfoRow label="Region" value={geo.region} />
-                    <InfoRow label="Postal" value={geo.postal} />
-                    <InfoRow label="Lat / Lng" value={geo.lat && geo.lng ? `${geo.lat}, ${geo.lng}` : null} />
-                    <InfoRow label="ISP" value={geo.isp} />
-                    <InfoRow label="Organization" value={geo.org} />
-                    <InfoRow label="AS" value={geo.as} />
-                    <InfoRow label="Timezone" value={geo.timezone} />
-                  </>
-                )}
+                <InfoRow label="Country" value={doc.ipCountry} />
+                <InfoRow label="City" value={effectiveGeo?.city as string} />
+                <InfoRow label="Region" value={effectiveGeo?.region as string} />
+                <InfoRow label="Postal Code" value={effectiveGeo?.postal as string} />
+                <InfoRow label="Latitude" value={effectiveGeo?.lat?.toString()} />
+                <InfoRow label="Longitude" value={effectiveGeo?.lng?.toString()} />
+                <InfoRow label="ISP" value={effectiveGeo?.isp as string} />
+                <InfoRow label="Organization" value={effectiveGeo?.org as string} />
+                <InfoRow label="AS Number" value={effectiveGeo?.as as string} />
+                <InfoRow label="Timezone" value={effectiveGeo?.timezone as string} />
               </div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 mt-4">Browser</h3>
               <div className="space-y-0">
                 <InfoRow label="User Agent" value={doc.userAgent} />
+                <InfoRow label="Preferred Languages" value={fs?.preferredLangs} />
               </div>
             </div>
           </div>
@@ -309,34 +323,40 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
             </div>
           )}
 
-          {/* Linked Form Session */}
+          {/* Session: Traffic & Tracking */}
           {fs && (
             <div className="bg-gray-800/40 rounded-xl p-4">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Linked Form Session
-                {fs.isReturning && <span className="ml-2 px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[10px]">Returning</span>}
+                Session: Traffic & Tracking
               </h3>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Session Meta */}
                 <div className="space-y-0">
                   <InfoRow label="Session ID" value={fs.id} />
                   <InfoRow label="Started" value={new Date(fs.startedAt).toLocaleString()} />
                   <InfoRow label="Last Activity" value={new Date(fs.lastActivityAt).toLocaleString()} />
+                  <InfoRow label="Duration" value={
+                    `${Math.round((new Date(fs.completedAt || fs.lastActivityAt).getTime() - new Date(fs.startedAt).getTime()) / 1000)}s`
+                  } />
                   <InfoRow label="Completed" value={fs.completed ? "Yes" : "No"} />
-                  <InfoRow label="Completed At" value={fs.completedAt ? new Date(fs.completedAt).toLocaleString() : null} />
                   <InfoRow label="Field Changes" value={fs.fieldLogCount.toString()} />
-                  <InfoRow label="Fingerprint" value={fs.fingerprintHash} />
                   <InfoRow label="Page URL" value={fs.pageUrl} />
-                  <InfoRow label="Referral Source" value={fs.referralSource} />
+                  <InfoRow label="Landing Page" value={fs.landingPage} />
                 </div>
-                {/* Traffic */}
                 <div className="space-y-0">
                   <InfoRow label="Traffic Source" value={fs.trafficSource} />
+                  <InfoRow label="Referral Source" value={fs.referralSource} />
+                  <InfoRow label="Full Referrer" value={fs.fullReferrer} />
+                  <InfoRow label="Search Query" value={fs.searchQuery} />
+                  <InfoRow label="Social Platform" value={fs.socialPlatform} />
                   <InfoRow label="UTM Source" value={fs.utmSource} />
                   <InfoRow label="UTM Medium" value={fs.utmMedium} />
                   <InfoRow label="UTM Campaign" value={fs.utmCampaign} />
                   <InfoRow label="UTM Term" value={fs.utmTerm} />
                   <InfoRow label="UTM Content" value={fs.utmContent} />
+                </div>
+                <div className="space-y-0">
+                  <InfoRow label="Fingerprint Hash" value={fs.fingerprintHash} />
+                  <InfoRow label="Returning Visitor" value={fs.isReturning ? "Yes" : "No"} />
                   <InfoRow label="Session IP" value={fs.ipAddress} />
                   <InfoRow label="Session Country" value={fs.ipCountry} />
                   {fsGeo && (
@@ -344,32 +364,98 @@ function FullViewModal({ doc, onClose }: { doc: Doc; onClose: () => void }) {
                       <InfoRow label="Session City" value={`${fsGeo.city}, ${fsGeo.region}`} />
                       <InfoRow label="Session ISP" value={fsGeo.isp} />
                       <InfoRow label="Session Org" value={fsGeo.org} />
+                      <InfoRow label="Session Timezone" value={fsGeo.timezone} />
                     </>
                   )}
                 </div>
-                {/* Behavioral + Device */}
+              </div>
+            </div>
+          )}
+
+          {/* Session: Device & Fingerprint */}
+          {fs && (dev || fp) && (
+            <div className="bg-gray-800/40 rounded-xl p-4">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Session: Device & Fingerprint
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {dev && (
+                  <div className="space-y-0">
+                    <InfoRow label="Mobile" value={dev.mobile ? "Yes" : "No"} />
+                    <InfoRow label="Screen Size" value={dev.screenWidth ? `${dev.screenWidth}x${dev.screenHeight}` : null} />
+                    <InfoRow label="Window Size" value={dev.windowWidth ? `${dev.windowWidth}x${dev.windowHeight}` : null} />
+                    <InfoRow label="Pixel Ratio" value={dev.pixelRatio?.toString()} />
+                    <InfoRow label="Language" value={String(dev.language ?? "")} />
+                    <InfoRow label="Platform" value={String(dev.platform ?? "")} />
+                    <InfoRow label="Touch Support" value={dev.touchSupport ? "Yes" : "No"} />
+                  </div>
+                )}
+                {fp && (
+                  <>
+                    <div className="space-y-0">
+                      <InfoRow label="Screen Resolution" value={fp.screenResolution as string} />
+                      <InfoRow label="Color Depth" value={fp.colorDepth?.toString()} />
+                      <InfoRow label="CPU Cores" value={fp.hardwareConcurrency?.toString()} />
+                      <InfoRow label="Device Memory" value={fp.deviceMemory ? `${fp.deviceMemory}GB` : null} />
+                      <InfoRow label="GPU" value={fp.gpu as string} />
+                      <InfoRow label="DNT" value={fp.doNotTrack as string} />
+                      <InfoRow label="Cookies Enabled" value={fp.cookieEnabled ? "Yes" : "No"} />
+                    </div>
+                    <div className="space-y-0">
+                      <InfoRow label="Timezone" value={fp.timezone as string} />
+                      <InfoRow label="Languages" value={Array.isArray(fp.languages) ? (fp.languages as string[]).join(", ") : null} />
+                      <InfoRow label="Platform" value={fp.platform as string} />
+                      <InfoRow label="Connection" value={fp.connection as string} />
+                      <InfoRow label="Canvas Hash" value={fp.canvasHash as string} />
+                      <InfoRow label="WebGL Hash" value={fp.webglHash as string} />
+                      <InfoRow label="Audio Hash" value={fp.audioHash as string} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Session: Behavioral Analytics */}
+          {beh && (
+            <div className="bg-gray-800/40 rounded-xl p-4">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                Session: Behavioral Analytics
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-0">
-                  {dev && (
-                    <>
-                      <InfoRow label="Mobile" value={dev.mobile ? "Yes" : "No"} />
-                      <InfoRow label="Screen" value={`${dev.screenWidth}x${dev.screenHeight}`} />
-                      <InfoRow label="Language" value={String(dev.language ?? "")} />
-                      <InfoRow label="Platform" value={String(dev.platform ?? "")} />
-                    </>
+                  <InfoRow label="Session Duration" value={beh.duration ? `${Math.round((beh.duration as number) / 1000)}s` : null} />
+                  <InfoRow label="Page Load Time" value={beh.pageLoadTime ? `${beh.pageLoadTime}ms` : null} />
+                  <InfoRow label="Scroll Depth" value={beh.scrollDepth ? `${beh.scrollDepth}%` : null} />
+                  <InfoRow label="Tab Switches" value={(beh.tabSwitches as number)?.toString()} />
+                  <InfoRow label="Rage Clicks" value={(beh.rageClicks as number)?.toString()} />
+                  <InfoRow label="Copy Events" value={(beh.copyEvents as number)?.toString()} />
+                  <InfoRow label="Right Click Events" value={(beh.rightClickEvents as number)?.toString()} />
+                </div>
+                <div className="space-y-0">
+                  <InfoRow label="Paste Events" value={((beh.pasteEvents as string[]) || []).length.toString()} />
+                  {(beh.pasteEvents as string[])?.length > 0 && (
+                    <InfoRow label="Pasted Fields" value={(beh.pasteEvents as string[]).join(", ")} />
                   )}
-                  {beh && (
+                  <InfoRow label="Fields Edited" value={Object.keys((beh.editCounts as Record<string, number>) || {}).length.toString()} />
+                  <InfoRow label="Total Edits" value={
+                    Object.values((beh.editCounts as Record<string, number>) || {}).reduce((s, n) => s + n, 0).toString()
+                  } />
+                  <InfoRow label="Mouse Positions" value={Array.isArray(beh.mousePositions) ? `${(beh.mousePositions as unknown[]).length} tracked` : null} />
+                  <InfoRow label="Clicks Tracked" value={Array.isArray(beh.clicks) ? `${(beh.clicks as unknown[]).length} tracked` : null} />
+                </div>
+                <div className="space-y-0">
+                  {Array.isArray(beh.fieldOrder) ? (
+                    <InfoRow label="Field Order" value={(beh.fieldOrder as string[]).join(" → ")} />
+                  ) : null}
+                  {beh.fieldTimings && typeof beh.fieldTimings === "object" ? (
                     <>
-                      <InfoRow label="Duration" value={beh.duration ? `${Math.round((beh.duration as number) / 1000)}s` : null} />
-                      <InfoRow label="Scroll Depth" value={beh.scrollDepth ? `${beh.scrollDepth}%` : null} />
-                      <InfoRow label="Tab Switches" value={(beh.tabSwitches as number)?.toString()} />
-                      <InfoRow label="Rage Clicks" value={(beh.rageClicks as number)?.toString()} />
-                      <InfoRow label="Paste Events" value={((beh.pasteEvents as string[]) || []).length.toString()} />
-                      <InfoRow label="Total Edits" value={
-                        Object.values((beh.editCounts as Record<string, number>) || {}).reduce((s, n) => s + n, 0).toString()
-                      } />
-                      <InfoRow label="Page Load" value={beh.pageLoadTime ? `${beh.pageLoadTime}ms` : null} />
+                      <p className="text-[10px] text-gray-500 uppercase mt-2 mb-1">Field Timings (ms)</p>
+                      {Object.entries(beh.fieldTimings as Record<string, number>).map(([field, ms]) => (
+                        <InfoRow key={field} label={field} value={`${Math.round(ms)}ms`} />
+                      ))}
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
