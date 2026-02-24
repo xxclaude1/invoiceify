@@ -1,26 +1,71 @@
 "use client";
 
+import { useState } from "react";
 import { useWizard } from "./wizard-context";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/button";
+import { generatePDFBlob } from "@/lib/generate-pdf";
 
 const TEMPLATES = [
-  { id: "classic", name: "Classic", accent: "border-primary", headerBg: "bg-primary/5" },
-  { id: "modern", name: "Modern", accent: "border-accent", headerBg: "bg-accent/10" },
-  { id: "minimal", name: "Minimal", accent: "border-gray-300", headerBg: "bg-gray-50" },
-  { id: "corporate", name: "Corporate", accent: "border-blue-500", headerBg: "bg-blue-50" },
-  { id: "creative", name: "Creative", accent: "border-purple-500", headerBg: "bg-purple-50" },
-  { id: "dark", name: "Dark", accent: "border-gray-700", headerBg: "bg-gray-800" },
+  { id: "classic", name: "Classic", accent: "border-primary", headerBg: "bg-primary/5", titleColor: "text-primary", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-gray-100", totalColor: "text-primary" },
+  { id: "modern", name: "Modern", accent: "border-accent", headerBg: "bg-accent/10", titleColor: "text-accent", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-accent/5", totalColor: "text-accent" },
+  { id: "minimal", name: "Minimal", accent: "border-gray-300", headerBg: "bg-gray-50", titleColor: "text-gray-700", bodyBg: "bg-white", textColor: "text-gray-700", mutedColor: "text-gray-300", lineBg: "bg-gray-50", totalColor: "text-gray-800" },
+  { id: "corporate", name: "Corporate", accent: "border-blue-500", headerBg: "bg-blue-50", titleColor: "text-blue-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-blue-50/50", totalColor: "text-blue-700" },
+  { id: "creative", name: "Creative", accent: "border-purple-500", headerBg: "bg-purple-50", titleColor: "text-purple-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-purple-50/50", totalColor: "text-purple-700" },
+  { id: "dark", name: "Dark", accent: "border-gray-700", headerBg: "bg-gray-800", titleColor: "text-white", bodyBg: "bg-gray-900", textColor: "text-gray-200", mutedColor: "text-gray-500", lineBg: "bg-gray-800", totalColor: "text-green-400" },
 ];
 
 export default function StepTemplate() {
-  const { state, dispatch, grandTotal } = useWizard();
+  const { state, dispatch, subtotal, taxTotal, discountTotal, grandTotal } = useWizard();
+  const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
-    // TODO: Session 4 — PDF generation + save to DB
-    alert(
-      "PDF generation coming in Session 4! Your document data has been captured."
-    );
+    setDownloading(true);
+    try {
+      // 1) Save full document to the database
+      await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: state.documentType,
+          industryPreset: state.industryPreset,
+          documentNumber: state.documentNumber,
+          issueDate: state.issueDate,
+          dueDate: state.dueDate,
+          currency: state.currency,
+          senderInfo: state.senderInfo,
+          recipientInfo: state.recipientInfo,
+          lineItems: state.lineItems.filter((item) => item.description),
+          notes: state.notes,
+          terms: state.terms,
+          templateId: state.templateId,
+          subtotal,
+          taxTotal,
+          discountTotal,
+          grandTotal,
+          extraFields: state.extraFields,
+          senderSignature: state.senderSignature,
+        }),
+      });
+
+      // 2) Generate PDF blob
+      const blob = await generatePDFBlob(state, subtotal, taxTotal, discountTotal, grandTotal);
+
+      // 3) Trigger browser download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${state.documentNumber || "document"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Something went wrong generating your PDF. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -50,62 +95,61 @@ export default function StepTemplate() {
               <div
                 className={cn(
                   "aspect-[3/4] p-3 flex flex-col",
-                  template.id === "dark" ? "bg-gray-900" : "bg-white"
+                  template.bodyBg
                 )}
               >
-                <div className={cn("h-6 rounded-sm mb-2", template.headerBg)} />
-                <div className="flex justify-between mb-3">
+                {/* Header bar */}
+                <div className={cn("h-5 rounded-sm mb-2", template.headerBg)} />
+                {/* Title + Company */}
+                <div className="flex justify-between items-start mb-2">
                   <div
                     className={cn(
-                      "text-[8px] font-bold tracking-wider",
-                      template.id === "dark" ? "text-white" : "text-text-primary"
+                      "text-[7px] font-bold tracking-wider leading-tight",
+                      template.titleColor
                     )}
                   >
                     {state.documentType
                       ? state.documentType.replace(/_/g, " ").toUpperCase()
                       : "INVOICE"}
+                    <div className={cn("text-[5px] font-normal mt-0.5", template.mutedColor)}>
+                      #INV-001
+                    </div>
                   </div>
-                  <div className="w-6 h-6 bg-primary/10 rounded" />
+                  <div className={cn("text-[5px] text-right leading-tight", template.mutedColor)}>
+                    <div className={cn("text-[6px] font-bold", template.textColor)}>Acme Co.</div>
+                    hello@acme.com
+                  </div>
                 </div>
-                <div className="space-y-1.5 flex-1">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex gap-1">
-                      <div
-                        className={cn(
-                          "h-1.5 rounded-full flex-1",
-                          template.id === "dark" ? "bg-gray-700" : "bg-gray-100"
-                        )}
-                      />
-                      <div
-                        className={cn(
-                          "h-1.5 rounded-full w-8",
-                          template.id === "dark" ? "bg-gray-600" : "bg-gray-200"
-                        )}
-                      />
+                {/* Bill To */}
+                <div className={cn("rounded px-1.5 py-1 mb-2", template.lineBg)}>
+                  <div className={cn("text-[4px] uppercase font-bold tracking-wider", template.mutedColor)}>Bill To</div>
+                  <div className={cn("text-[5px] font-medium", template.textColor)}>Example Client</div>
+                </div>
+                {/* Line items */}
+                <div className="space-y-0.5 flex-1">
+                  <div className={cn("flex justify-between text-[4px] font-bold pb-0.5 border-b", template.mutedColor, template.id === "dark" ? "border-gray-700" : "border-gray-200")}>
+                    <span>Description</span>
+                    <span>Amount</span>
+                  </div>
+                  {["Web Design", "Development", "Hosting"].map((item) => (
+                    <div key={item} className="flex justify-between text-[5px]">
+                      <span className={template.textColor}>{item}</span>
+                      <span className={template.mutedColor}>$XXX.XX</span>
                     </div>
                   ))}
                 </div>
+                {/* Total */}
                 <div
                   className={cn(
-                    "mt-auto pt-2 border-t",
+                    "mt-auto pt-1.5 border-t",
                     template.id === "dark"
                       ? "border-gray-700"
-                      : "border-gray-100"
+                      : "border-gray-200"
                   )}
                 >
                   <div className="flex justify-between items-center">
-                    <div
-                      className={cn(
-                        "h-1.5 w-8 rounded-full",
-                        template.id === "dark" ? "bg-gray-600" : "bg-gray-200"
-                      )}
-                    />
-                    <div
-                      className={cn(
-                        "h-1.5 w-12 rounded-full",
-                        template.id === "dark" ? "bg-accent" : "bg-primary/30"
-                      )}
-                    />
+                    <span className={cn("text-[5px]", template.mutedColor)}>Total</span>
+                    <span className={cn("text-[7px] font-bold", template.totalColor)}>$X,XXX.XX</span>
                   </div>
                 </div>
               </div>
@@ -127,7 +171,7 @@ export default function StepTemplate() {
 
       {/* Actions */}
       <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 justify-center">
-        <Button variant="primary" size="lg" onClick={handleDownload}>
+        <Button variant="primary" size="lg" onClick={handleDownload} disabled={downloading}>
           <svg
             className="w-5 h-5 mr-2"
             fill="none"
@@ -141,7 +185,7 @@ export default function StepTemplate() {
               d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          Download PDF
+          {downloading ? "Generating..." : "Download PDF"}
         </Button>
         <Button variant="outline" size="lg">
           <svg

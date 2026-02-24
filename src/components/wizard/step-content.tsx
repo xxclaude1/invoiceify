@@ -543,24 +543,6 @@ export default function StepContent() {
               })
             }
           />
-          <SignaturePad
-            label="Client / Recipient Signature"
-            value={state.recipientSignature}
-            onChange={(dataUrl) =>
-              dispatch({
-                type: "SET_FIELD",
-                field: "recipientSignature",
-                value: dataUrl,
-              })
-            }
-            onClear={() =>
-              dispatch({
-                type: "SET_FIELD",
-                field: "recipientSignature",
-                value: "",
-              })
-            }
-          />
         </div>
       </div>
     </div>

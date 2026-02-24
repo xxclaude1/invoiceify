@@ -3,6 +3,16 @@
 import { useWizard } from "./wizard-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DOCUMENT_TYPE_CONFIGS } from "@/types";
+import { cn } from "@/lib/utils";
+
+const TEMPLATE_STYLES: Record<string, { bg: string; titleColor: string; textColor: string; mutedColor: string; accentBg: string; borderColor: string; totalColor: string }> = {
+  classic: { bg: "bg-white", titleColor: "text-primary", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-gray-50", borderColor: "border-gray-200", totalColor: "text-primary" },
+  modern: { bg: "bg-white", titleColor: "text-accent", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-accent/5", borderColor: "border-accent/20", totalColor: "text-accent" },
+  minimal: { bg: "bg-white", titleColor: "text-gray-700", textColor: "text-gray-600", mutedColor: "text-gray-300", accentBg: "bg-gray-50", borderColor: "border-gray-100", totalColor: "text-gray-800" },
+  corporate: { bg: "bg-white", titleColor: "text-blue-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-blue-50", borderColor: "border-blue-200", totalColor: "text-blue-700" },
+  creative: { bg: "bg-white", titleColor: "text-purple-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-purple-50", borderColor: "border-purple-200", totalColor: "text-purple-700" },
+  dark: { bg: "bg-gray-900", titleColor: "text-white", textColor: "text-gray-200", mutedColor: "text-gray-500", accentBg: "bg-gray-800", borderColor: "border-gray-700", totalColor: "text-green-400" },
+};
 
 export default function DocumentPreview() {
   const { state, subtotal, taxTotal, discountTotal, grandTotal } = useWizard();
@@ -12,6 +22,7 @@ export default function DocumentPreview() {
   );
   const docLabel = config?.label.toUpperCase() ?? "DOCUMENT";
   const isDeliveryNote = state.documentType === "delivery_note";
+  const t = TEMPLATE_STYLES[state.templateId] || TEMPLATE_STYLES.classic;
 
   if (!state.documentType) {
     return (
@@ -47,27 +58,32 @@ export default function DocumentPreview() {
 
   return (
     <div className="bg-surface rounded-2xl border border-border p-4">
-      <h3 className="text-sm font-bold text-text-primary mb-3">Live Preview</h3>
-      <div className="bg-white rounded-xl border border-border p-5 text-[11px] leading-relaxed shadow-sm">
+      <h3 className="text-sm font-bold text-text-primary mb-3">
+        Live Preview
+        <span className="text-xs font-normal text-text-secondary ml-2">
+          {state.templateId.charAt(0).toUpperCase() + state.templateId.slice(1)} template
+        </span>
+      </h3>
+      <div className={cn("rounded-xl border p-5 text-[11px] leading-relaxed shadow-sm transition-colors duration-300", t.bg, t.borderColor)}>
         {/* Document Header */}
         <div className="flex justify-between items-start mb-4">
           <div>
-            <div className="text-base font-bold text-primary">{docLabel}</div>
-            <div className="text-text-secondary mt-1">
+            <div className={cn("text-base font-bold", t.titleColor)}>{docLabel}</div>
+            <div className={cn("mt-1", t.mutedColor)}>
               {state.documentNumber && <span>{state.documentNumber}</span>}
             </div>
           </div>
           <div className="text-right">
             {state.senderInfo.businessName && (
-              <div className="font-bold text-text-primary">
+              <div className={cn("font-bold", t.textColor)}>
                 {state.senderInfo.businessName}
               </div>
             )}
             {state.senderInfo.email && (
-              <div className="text-text-secondary">{state.senderInfo.email}</div>
+              <div className={t.mutedColor}>{state.senderInfo.email}</div>
             )}
             {state.senderInfo.address?.city && (
-              <div className="text-text-secondary">
+              <div className={t.mutedColor}>
                 {state.senderInfo.address.city}
                 {state.senderInfo.address.country &&
                   `, ${state.senderInfo.address.country}`}
@@ -77,7 +93,7 @@ export default function DocumentPreview() {
         </div>
 
         {/* Dates */}
-        <div className="flex gap-4 mb-4 text-text-secondary">
+        <div className={cn("flex gap-4 mb-4", t.mutedColor)}>
           {state.issueDate && (
             <div>
               <span className="font-medium">Date: </span>
@@ -94,15 +110,15 @@ export default function DocumentPreview() {
 
         {/* Bill To */}
         {state.recipientInfo.businessName && (
-          <div className="mb-4 p-2 bg-surface rounded">
-            <div className="text-[10px] font-medium text-text-secondary uppercase tracking-wider mb-1">
+          <div className={cn("mb-4 p-2 rounded", t.accentBg)}>
+            <div className={cn("text-[10px] font-medium uppercase tracking-wider mb-1", t.mutedColor)}>
               Bill To
             </div>
-            <div className="font-medium text-text-primary">
+            <div className={cn("font-medium", t.textColor)}>
               {state.recipientInfo.businessName}
             </div>
             {state.recipientInfo.email && (
-              <div className="text-text-secondary">
+              <div className={t.mutedColor}>
                 {state.recipientInfo.email}
               </div>
             )}
@@ -114,19 +130,19 @@ export default function DocumentPreview() {
           <div className="mb-4">
             <table className="w-full text-[10px]">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-1 font-medium text-text-secondary">
+                <tr className={cn("border-b", t.borderColor)}>
+                  <th className={cn("text-left py-1 font-medium", t.mutedColor)}>
                     Description
                   </th>
-                  <th className="text-right py-1 font-medium text-text-secondary">
+                  <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
                     Qty
                   </th>
                   {!isDeliveryNote && (
                     <>
-                      <th className="text-right py-1 font-medium text-text-secondary">
+                      <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
                         Price
                       </th>
-                      <th className="text-right py-1 font-medium text-text-secondary">
+                      <th className={cn("text-right py-1 font-medium", t.mutedColor)}>
                         Total
                       </th>
                     </>
@@ -137,19 +153,19 @@ export default function DocumentPreview() {
                 {state.lineItems
                   .filter((item) => item.description)
                   .map((item) => (
-                    <tr key={item.id} className="border-b border-border/30">
-                      <td className="py-1 text-text-primary">
+                    <tr key={item.id} className={cn("border-b", t.borderColor, "border-opacity-30")}>
+                      <td className={cn("py-1", t.textColor)}>
                         {item.description}
                       </td>
-                      <td className="py-1 text-right text-text-primary">
+                      <td className={cn("py-1 text-right", t.textColor)}>
                         {item.quantity}
                       </td>
                       {!isDeliveryNote && (
                         <>
-                          <td className="py-1 text-right text-text-primary">
+                          <td className={cn("py-1 text-right", t.textColor)}>
                             {formatCurrency(item.unitPrice, state.currency)}
                           </td>
-                          <td className="py-1 text-right font-medium text-text-primary">
+                          <td className={cn("py-1 text-right font-medium", t.textColor)}>
                             {formatCurrency(item.lineTotal, state.currency)}
                           </td>
                         </>
@@ -163,8 +179,8 @@ export default function DocumentPreview() {
 
         {/* Totals */}
         {!isDeliveryNote && grandTotal > 0 && (
-          <div className="border-t border-border pt-2 space-y-1">
-            <div className="flex justify-between text-text-secondary">
+          <div className={cn("border-t pt-2 space-y-1", t.borderColor)}>
+            <div className={cn("flex justify-between", t.mutedColor)}>
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal, state.currency)}</span>
             </div>
@@ -175,12 +191,12 @@ export default function DocumentPreview() {
               </div>
             )}
             {taxTotal > 0 && (
-              <div className="flex justify-between text-text-secondary">
+              <div className={cn("flex justify-between", t.mutedColor)}>
                 <span>Tax</span>
                 <span>{formatCurrency(taxTotal, state.currency)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-primary text-xs pt-1 border-t border-border">
+            <div className={cn("flex justify-between font-bold text-xs pt-1 border-t", t.totalColor, t.borderColor)}>
               <span>Total</span>
               <span>{formatCurrency(grandTotal, state.currency)}</span>
             </div>
@@ -189,16 +205,16 @@ export default function DocumentPreview() {
 
         {/* Notes */}
         {state.notes && (
-          <div className="mt-3 pt-2 border-t border-border/50">
-            <div className="text-[10px] font-medium text-text-secondary mb-0.5">
+          <div className={cn("mt-3 pt-2 border-t", t.borderColor)}>
+            <div className={cn("text-[10px] font-medium mb-0.5", t.mutedColor)}>
               Notes
             </div>
-            <div className="text-text-primary">{state.notes}</div>
+            <div className={t.textColor}>{state.notes}</div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-4 pt-2 border-t border-border/30 text-center text-text-muted text-[9px]">
+        <div className={cn("mt-4 pt-2 border-t text-center text-[9px]", t.borderColor, t.mutedColor)}>
           Created with Invoiceify
         </div>
       </div>
