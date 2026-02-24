@@ -8,10 +8,10 @@ import { generatePDFBlob } from "@/lib/generate-pdf";
 
 const TEMPLATES = [
   { id: "classic", name: "Classic", accent: "border-primary", headerBg: "bg-primary/5", titleColor: "text-primary", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-gray-100", totalColor: "text-primary" },
-  { id: "modern", name: "Modern", accent: "border-accent", headerBg: "bg-accent/10", titleColor: "text-accent", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-accent/5", totalColor: "text-accent" },
+  { id: "modern", name: "Modern", accent: "border-blue-500", headerBg: "bg-blue-50", titleColor: "text-blue-600", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-blue-50/50", totalColor: "text-blue-600" },
   { id: "minimal", name: "Minimal", accent: "border-gray-300", headerBg: "bg-gray-50", titleColor: "text-gray-700", bodyBg: "bg-white", textColor: "text-gray-700", mutedColor: "text-gray-300", lineBg: "bg-gray-50", totalColor: "text-gray-800" },
-  { id: "corporate", name: "Corporate", accent: "border-blue-500", headerBg: "bg-blue-50", titleColor: "text-blue-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-blue-50/50", totalColor: "text-blue-700" },
-  { id: "creative", name: "Creative", accent: "border-purple-500", headerBg: "bg-purple-50", titleColor: "text-purple-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-purple-50/50", totalColor: "text-purple-700" },
+  { id: "corporate", name: "Corporate", accent: "border-emerald-500", headerBg: "bg-emerald-50", titleColor: "text-emerald-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-emerald-50/50", totalColor: "text-emerald-700" },
+  { id: "creative", name: "Creative", accent: "border-teal-500", headerBg: "bg-teal-50", titleColor: "text-teal-700", bodyBg: "bg-white", textColor: "text-gray-800", mutedColor: "text-gray-400", lineBg: "bg-teal-50/50", totalColor: "text-teal-700" },
   { id: "dark", name: "Dark", accent: "border-gray-700", headerBg: "bg-gray-800", titleColor: "text-white", bodyBg: "bg-gray-900", textColor: "text-gray-200", mutedColor: "text-gray-500", lineBg: "bg-gray-800", totalColor: "text-green-400" },
 ];
 

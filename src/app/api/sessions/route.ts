@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 // POST /api/sessions — Create a new form session when user starts typing
 export async function POST(request: NextRequest) {
@@ -58,5 +59,29 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Error updating session:", error);
     return NextResponse.json({ success: false, error: "Failed to update session" }, { status: 500 });
+  }
+}
+
+// DELETE /api/sessions — Delete a session permanently (admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await request.json();
+    if (!id) {
+      return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+    }
+
+    // fieldLogs cascade delete from schema, but be explicit
+    await prisma.formFieldLog.deleteMany({ where: { sessionId: id } });
+    await prisma.formSession.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting session:", error);
+    return NextResponse.json({ success: false, error: "Failed to delete session" }, { status: 500 });
   }
 }

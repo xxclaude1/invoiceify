@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Button from "@/components/ui/button";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: session } = useSession();
+  const pathname = usePathname();
+  const isCreatePage = pathname === "/create";
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-border">
@@ -37,49 +38,41 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            <a
-              href="#how-it-works"
-              className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-            >
-              How it works
-            </a>
-            <a
-              href="#features"
-              className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#faq"
-              className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-            >
-              FAQs
-            </a>
-          </nav>
+          {!isCreatePage && (
+            <nav className="hidden md:flex items-center gap-8">
+              <a
+                href="#how-it-works"
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                How it works
+              </a>
+              <a
+                href="#features"
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#faq"
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                FAQs
+              </a>
+            </nav>
+          )}
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            {session?.user ? (
-              <Link href="/dashboard">
-                <Button variant="primary" size="sm">
-                  Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Login
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button variant="primary" size="sm">
-                    Sign up
-                  </Button>
-                </Link>
-              </>
-            )}
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="primary" size="sm">
+                Sign up
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -120,45 +113,39 @@ export default function Header() {
         )}
       >
         <div className="px-4 py-4 space-y-3">
-          <a
-            href="#how-it-works"
-            className="block text-sm text-text-secondary hover:text-text-primary"
-          >
-            How it works
-          </a>
-          <a
-            href="#features"
-            className="block text-sm text-text-secondary hover:text-text-primary"
-          >
-            Features
-          </a>
-          <a
-            href="#faq"
-            className="block text-sm text-text-secondary hover:text-text-primary"
-          >
-            FAQs
-          </a>
+          {!isCreatePage && (
+            <>
+              <a
+                href="#how-it-works"
+                className="block text-sm text-text-secondary hover:text-text-primary"
+              >
+                How it works
+              </a>
+              <a
+                href="#features"
+                className="block text-sm text-text-secondary hover:text-text-primary"
+              >
+                Features
+              </a>
+              <a
+                href="#faq"
+                className="block text-sm text-text-secondary hover:text-text-primary"
+              >
+                FAQs
+              </a>
+            </>
+          )}
           <div className="flex gap-3 pt-2">
-            {session?.user ? (
-              <Link href="/dashboard">
-                <Button variant="primary" size="sm">
-                  Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Login
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button variant="primary" size="sm">
-                    Sign up
-                  </Button>
-                </Link>
-              </>
-            )}
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="primary" size="sm">
+                Sign up
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

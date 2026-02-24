@@ -5,13 +5,13 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { DOCUMENT_TYPE_CONFIGS } from "@/types";
 import { cn } from "@/lib/utils";
 
-const TEMPLATE_STYLES: Record<string, { bg: string; titleColor: string; textColor: string; mutedColor: string; accentBg: string; borderColor: string; totalColor: string }> = {
-  classic: { bg: "bg-white", titleColor: "text-primary", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-gray-50", borderColor: "border-gray-200", totalColor: "text-primary" },
-  modern: { bg: "bg-white", titleColor: "text-accent", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-accent/5", borderColor: "border-accent/20", totalColor: "text-accent" },
-  minimal: { bg: "bg-white", titleColor: "text-gray-700", textColor: "text-gray-600", mutedColor: "text-gray-300", accentBg: "bg-gray-50", borderColor: "border-gray-100", totalColor: "text-gray-800" },
-  corporate: { bg: "bg-white", titleColor: "text-blue-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-blue-50", borderColor: "border-blue-200", totalColor: "text-blue-700" },
-  creative: { bg: "bg-white", titleColor: "text-purple-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-purple-50", borderColor: "border-purple-200", totalColor: "text-purple-700" },
-  dark: { bg: "bg-gray-900", titleColor: "text-white", textColor: "text-gray-200", mutedColor: "text-gray-500", accentBg: "bg-gray-800", borderColor: "border-gray-700", totalColor: "text-green-400" },
+const TEMPLATE_STYLES: Record<string, { bg: string; headerBar: string; titleColor: string; textColor: string; mutedColor: string; accentBg: string; borderColor: string; totalColor: string }> = {
+  classic: { bg: "bg-white", headerBar: "bg-primary", titleColor: "text-primary", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-gray-50", borderColor: "border-gray-200", totalColor: "text-primary" },
+  modern: { bg: "bg-white", headerBar: "bg-blue-500", titleColor: "text-blue-600", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-blue-50", borderColor: "border-blue-200", totalColor: "text-blue-600" },
+  minimal: { bg: "bg-white", headerBar: "bg-gray-400", titleColor: "text-gray-700", textColor: "text-gray-600", mutedColor: "text-gray-300", accentBg: "bg-gray-50", borderColor: "border-gray-100", totalColor: "text-gray-800" },
+  corporate: { bg: "bg-white", headerBar: "bg-emerald-600", titleColor: "text-emerald-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-emerald-50", borderColor: "border-emerald-200", totalColor: "text-emerald-700" },
+  creative: { bg: "bg-white", headerBar: "bg-teal-500", titleColor: "text-teal-700", textColor: "text-gray-800", mutedColor: "text-gray-400", accentBg: "bg-teal-50", borderColor: "border-teal-200", totalColor: "text-teal-700" },
+  dark: { bg: "bg-gray-900", headerBar: "bg-green-400", titleColor: "text-white", textColor: "text-gray-200", mutedColor: "text-gray-500", accentBg: "bg-gray-800", borderColor: "border-gray-700", totalColor: "text-green-400" },
 };
 
 export default function DocumentPreview() {
@@ -64,7 +64,11 @@ export default function DocumentPreview() {
           {state.templateId.charAt(0).toUpperCase() + state.templateId.slice(1)} template
         </span>
       </h3>
-      <div className={cn("rounded-xl border p-5 text-[11px] leading-relaxed shadow-sm transition-colors duration-300", t.bg, t.borderColor)}>
+      <div className={cn("rounded-xl border text-[11px] leading-relaxed shadow-sm transition-colors duration-300 overflow-hidden", t.bg, t.borderColor)}>
+        {/* Template color bar */}
+        <div className={cn("h-1.5 w-full", t.headerBar)} />
+
+        <div className="p-5">
         {/* Document Header */}
         <div className="flex justify-between items-start mb-4">
           <div>
@@ -216,6 +220,7 @@ export default function DocumentPreview() {
         {/* Footer */}
         <div className={cn("mt-4 pt-2 border-t text-center text-[9px]", t.borderColor, t.mutedColor)}>
           Created with Invoiceify
+        </div>
         </div>
       </div>
     </div>

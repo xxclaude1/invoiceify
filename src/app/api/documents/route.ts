@@ -122,6 +122,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// DELETE /api/documents — Delete a document permanently (admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await request.json();
+    if (!id) {
+      return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+    }
+
+    // Delete related records first, then the document
+    await prisma.lineItem.deleteMany({ where: { documentId: id } });
+    await prisma.documentEvent.deleteMany({ where: { documentId: id } });
+    await prisma.document.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    return NextResponse.json({ success: false, error: "Failed to delete document" }, { status: 500 });
+  }
+}
+
 // GET /api/documents — List all documents (for admin panel later)
 export async function GET(request: NextRequest) {
   try {

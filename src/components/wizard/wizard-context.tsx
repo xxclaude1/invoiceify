@@ -313,15 +313,23 @@ export function WizardProvider({ children }: { children: ReactNode }) {
 
   const nextStep = useCallback(() => {
     if (state.step < 4) {
-      rawDispatch({ type: "SET_STEP", step: (state.step + 1) as 1 | 2 | 3 | 4 });
+      const newStep = (state.step + 1) as 1 | 2 | 3 | 4;
+      rawDispatch({ type: "SET_STEP", step: newStep });
+      if (getSessionId()) {
+        updateSession({ formSnapshot: { ...state, step: newStep }, documentType: state.documentType });
+      }
     }
-  }, [state.step]);
+  }, [state, getSessionId, updateSession]);
 
   const prevStep = useCallback(() => {
     if (state.step > 1) {
-      rawDispatch({ type: "SET_STEP", step: (state.step - 1) as 1 | 2 | 3 | 4 });
+      const newStep = (state.step - 1) as 1 | 2 | 3 | 4;
+      rawDispatch({ type: "SET_STEP", step: newStep });
+      if (getSessionId()) {
+        updateSession({ formSnapshot: { ...state, step: newStep }, documentType: state.documentType });
+      }
     }
-  }, [state.step]);
+  }, [state, getSessionId, updateSession]);
 
   const canProceed =
     state.step === 1
