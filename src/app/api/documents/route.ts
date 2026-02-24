@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
         currency,
         senderInfo: {
           ...senderInfo,
-          signature: senderSignature || undefined,
         },
         recipientInfo,
         notes: notes || undefined,

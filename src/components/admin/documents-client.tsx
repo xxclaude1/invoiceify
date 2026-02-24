@@ -259,16 +259,30 @@ export default function AdminDocumentsClient({ documents }: { documents: Doc[] }
                       {/* Full Sender Info */}
                       <div>
                         <p className="text-gray-500 uppercase font-medium mb-2">Sender Info</p>
-                        <pre className="text-gray-300 whitespace-pre-wrap break-all">
-                          {JSON.stringify(doc.senderInfo, null, 2)}
-                        </pre>
+                        <div className="space-y-1 text-gray-300">
+                          {Object.entries(doc.senderInfo)
+                            .filter(([k]) => k !== "signature" && k !== "logoUrl")
+                            .map(([k, v]) => (
+                              <p key={k}>
+                                <span className="text-gray-500">{k}:</span>{" "}
+                                {typeof v === "object" ? JSON.stringify(v) : String(v || "—")}
+                              </p>
+                            ))}
+                        </div>
                       </div>
                       {/* Full Recipient Info */}
                       <div>
                         <p className="text-gray-500 uppercase font-medium mb-2">Recipient Info</p>
-                        <pre className="text-gray-300 whitespace-pre-wrap break-all">
-                          {JSON.stringify(doc.recipientInfo, null, 2)}
-                        </pre>
+                        <div className="space-y-1 text-gray-300">
+                          {Object.entries(doc.recipientInfo)
+                            .filter(([k]) => k !== "signature")
+                            .map(([k, v]) => (
+                              <p key={k}>
+                                <span className="text-gray-500">{k}:</span>{" "}
+                                {typeof v === "object" ? JSON.stringify(v) : String(v || "—")}
+                              </p>
+                            ))}
+                        </div>
                       </div>
                       {/* Metadata */}
                       <div>
