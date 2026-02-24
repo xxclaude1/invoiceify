@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface LineItem {
   id: string;
   description: string;
@@ -620,6 +622,237 @@ export default function AdminExportClient({
           </button>
         </div>
       </div>
+
+      {/* Custom Export */}
+      <CustomExportSection documents={documents} />
+    </div>
+  );
+}
+
+const CUSTOM_FIELDS = [
+  { key: "documentNumber", label: "Document Number" },
+  { key: "type", label: "Document Type" },
+  { key: "status", label: "Status" },
+  { key: "currency", label: "Currency" },
+  { key: "subtotal", label: "Subtotal" },
+  { key: "taxTotal", label: "Tax Total" },
+  { key: "discountTotal", label: "Discount Total" },
+  { key: "grandTotal", label: "Grand Total" },
+  { key: "issueDate", label: "Issue Date" },
+  { key: "dueDate", label: "Due Date" },
+  { key: "senderBusiness", label: "Sender Business" },
+  { key: "senderEmail", label: "Sender Email" },
+  { key: "senderPhone", label: "Sender Phone" },
+  { key: "senderAddress", label: "Sender Address" },
+  { key: "senderTaxId", label: "Sender Tax ID" },
+  { key: "recipientBusiness", label: "Recipient Business" },
+  { key: "recipientEmail", label: "Recipient Email" },
+  { key: "recipientPhone", label: "Recipient Phone" },
+  { key: "recipientAddress", label: "Recipient Address" },
+  { key: "lineItemsCount", label: "Line Items Count" },
+  { key: "lineItemsDetail", label: "Line Items Detail" },
+  { key: "notes", label: "Notes" },
+  { key: "terms", label: "Terms" },
+  { key: "templateId", label: "Template" },
+  { key: "industryPreset", label: "Industry Preset" },
+  { key: "userId", label: "User ID" },
+  { key: "guestOrUser", label: "Guest/User" },
+  { key: "ipCountry", label: "Country" },
+  { key: "createdAt", label: "Created At" },
+];
+
+const DOC_TYPES = [
+  "invoice", "tax_invoice", "proforma", "receipt", "sales_receipt",
+  "cash_receipt", "quote", "estimate", "credit_note", "purchase_order", "delivery_note",
+];
+
+function CustomExportSection({ documents }: { documents: Doc[] }) {
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(
+    new Set(CUSTOM_FIELDS.map((f) => f.key))
+  );
+  const [docTypeFilter, setDocTypeFilter] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [format, setFormat] = useState<"csv" | "json">("csv");
+
+  const toggleField = (key: string) => {
+    const next = new Set(selectedFields);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSelectedFields(next);
+  };
+
+  const selectAll = () => setSelectedFields(new Set(CUSTOM_FIELDS.map((f) => f.key)));
+  const selectNone = () => setSelectedFields(new Set());
+
+  const getFilteredDocs = () => {
+    let filtered = documents;
+    if (docTypeFilter) filtered = filtered.filter((d) => d.type === docTypeFilter);
+    if (dateFrom) filtered = filtered.filter((d) => d.createdAt >= dateFrom);
+    if (dateTo) filtered = filtered.filter((d) => d.createdAt <= dateTo + "T23:59:59");
+    return filtered;
+  };
+
+  const getFieldValue = (doc: Doc, key: string): string => {
+    const s = doc.senderInfo as Record<string, unknown>;
+    const r = doc.recipientInfo as Record<string, unknown>;
+    const sAddr = (s?.address as Record<string, string>) || {};
+    const rAddr = (r?.address as Record<string, string>) || {};
+    switch (key) {
+      case "documentNumber": return doc.documentNumber;
+      case "type": return doc.type;
+      case "status": return doc.status;
+      case "currency": return doc.currency;
+      case "subtotal": return String(doc.subtotal);
+      case "taxTotal": return String(doc.taxTotal);
+      case "discountTotal": return String(doc.discountTotal);
+      case "grandTotal": return String(doc.grandTotal);
+      case "issueDate": return doc.issueDate;
+      case "dueDate": return doc.dueDate || "";
+      case "senderBusiness": return String(s?.businessName ?? "");
+      case "senderEmail": return String(s?.email ?? "");
+      case "senderPhone": return String(s?.phone ?? "");
+      case "senderAddress": return [sAddr.line1, sAddr.city, sAddr.postalCode, sAddr.country].filter(Boolean).join(", ");
+      case "senderTaxId": return String(s?.taxId ?? "");
+      case "recipientBusiness": return String(r?.businessName ?? "");
+      case "recipientEmail": return String(r?.email ?? "");
+      case "recipientPhone": return String(r?.phone ?? "");
+      case "recipientAddress": return [rAddr.line1, rAddr.city, rAddr.postalCode, rAddr.country].filter(Boolean).join(", ");
+      case "lineItemsCount": return String(doc.lineItems.length);
+      case "lineItemsDetail": return doc.lineItems.map((li) => `${li.description} ($${li.lineTotal})`).join(" | ");
+      case "notes": return doc.notes || "";
+      case "terms": return doc.terms || "";
+      case "templateId": return doc.templateId;
+      case "industryPreset": return doc.industryPreset || "";
+      case "userId": return doc.userId || "";
+      case "guestOrUser": return doc.userId ? "User" : "Guest";
+      case "ipCountry": return doc.ipCountry || "";
+      case "createdAt": return doc.createdAt;
+      default: return "";
+    }
+  };
+
+  const exportCustom = () => {
+    const filtered = getFilteredDocs();
+    const fields = CUSTOM_FIELDS.filter((f) => selectedFields.has(f.key));
+
+    if (format === "json") {
+      const data = filtered.map((doc) => {
+        const row: Record<string, string> = {};
+        fields.forEach((f) => { row[f.key] = getFieldValue(doc, f.key); });
+        return row;
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url;
+      a.download = `invoiceify-custom-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } else {
+      const headers = fields.map((f) => f.label).join(",");
+      const rows = filtered.map((doc) =>
+        fields.map((f) => `"${getFieldValue(doc, f.key).replace(/"/g, '""')}"`).join(",")
+      );
+      const csv = [headers, ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url;
+      a.download = `invoiceify-custom-export-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+  };
+
+  const filteredCount = getFilteredDocs().length;
+
+  return (
+    <div className="mt-8 bg-gray-900 rounded-xl border border-gray-800 p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+          <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-white">Custom Export</h3>
+          <p className="text-xs text-gray-500">Pick fields, filter by type/date, export as CSV or JSON</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Document Type</label>
+          <select
+            value={docTypeFilter}
+            onChange={(e) => setDocTypeFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white"
+          >
+            <option value="">All types</option>
+            {DOC_TYPES.map((t) => (
+              <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">From Date</label>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white" />
+        </div>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">To Date</label>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white" />
+        </div>
+        <div>
+          <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Format</label>
+          <div className="flex gap-2">
+            <button onClick={() => setFormat("csv")}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${format === "csv" ? "bg-violet-500 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}>
+              CSV
+            </button>
+            <button onClick={() => setFormat("json")}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${format === "json" ? "bg-violet-500 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}>
+              JSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Field Picker */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-[10px] text-gray-500 uppercase tracking-wider">
+            Select Fields ({selectedFields.size} of {CUSTOM_FIELDS.length})
+          </label>
+          <div className="flex gap-2">
+            <button onClick={selectAll} className="text-[10px] text-violet-400 hover:text-violet-300 cursor-pointer">Select All</button>
+            <button onClick={selectNone} className="text-[10px] text-gray-500 hover:text-gray-400 cursor-pointer">Clear All</button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {CUSTOM_FIELDS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => toggleField(f.key)}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+                selectedFields.has(f.key)
+                  ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  : "bg-gray-800 text-gray-500 border border-gray-700"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Export Button */}
+      <button
+        onClick={exportCustom}
+        disabled={selectedFields.size === 0}
+        className="w-full bg-violet-500 hover:bg-violet-600 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-3 rounded-lg transition cursor-pointer"
+      >
+        Export {filteredCount} documents as {format.toUpperCase()} ({selectedFields.size} fields)
+      </button>
     </div>
   );
 }

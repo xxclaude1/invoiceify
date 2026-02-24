@@ -104,7 +104,9 @@ export default async function AdminOverviewPage() {
           { label: "Registered Accounts", value: totalUsers, color: "text-purple-400", sub: `${usersThisMonth} new this month` },
           { label: "Today", value: docsToday, color: "text-green-400", sub: `${docsThisWeek} this week / ${docsThisMonth} this month` },
           { label: "Form Sessions", value: totalSessions, color: "text-cyan-400", sub: `${completedSessions} completed / ${totalSessions - completedSessions} abandoned` },
+          { label: "Completion Rate", value: totalSessions > 0 ? `${Math.round((completedSessions / totalSessions) * 100)}%` : "N/A", color: "text-emerald-400", sub: `${completedSessions} of ${totalSessions} sessions converted` },
           { label: "Field Changes Logged", value: totalFieldLogs.toLocaleString(), color: "text-orange-400", sub: `Real-time keystroke data` },
+          { label: "Avg Fields per Session", value: totalSessions > 0 ? Math.round(totalFieldLogs / totalSessions) : 0, color: "text-pink-400", sub: "Engagement depth metric" },
         ].map((stat) => (
           <div key={stat.label} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
