@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  secret: process.env.AUTH_SECRET || "invoiceify-prod-fallback-secret-xK9mP2026",
   providers: [
     Credentials({
       name: "credentials",
