@@ -3,6 +3,7 @@
 import { useWizard } from "./wizard-context";
 import Input from "@/components/ui/input";
 import Select from "@/components/ui/select";
+import SignaturePad from "@/components/ui/signature-pad";
 import { CURRENCIES, DOCUMENT_TYPE_CONFIGS } from "@/types";
 
 const COUNTRIES = [
@@ -512,6 +513,54 @@ export default function StepContent() {
               }
             />
           </div>
+        </div>
+      </div>
+
+      {/* Signatures */}
+      <div>
+        <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+          <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary">
+            4
+          </span>
+          Signatures (Optional)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <SignaturePad
+            label="Your Signature"
+            value={state.senderSignature}
+            onChange={(dataUrl) =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "senderSignature",
+                value: dataUrl,
+              })
+            }
+            onClear={() =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "senderSignature",
+                value: "",
+              })
+            }
+          />
+          <SignaturePad
+            label="Client / Recipient Signature"
+            value={state.recipientSignature}
+            onChange={(dataUrl) =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "recipientSignature",
+                value: dataUrl,
+              })
+            }
+            onClear={() =>
+              dispatch({
+                type: "SET_FIELD",
+                field: "recipientSignature",
+                value: "",
+              })
+            }
+          />
         </div>
       </div>
     </div>

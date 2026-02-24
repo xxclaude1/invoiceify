@@ -37,6 +37,8 @@ export interface WizardState {
   lineItems: LineItem[];
   extraFields: DocumentExtraFields;
   templateId: string;
+  senderSignature: string;
+  recipientSignature: string;
 }
 
 const today = new Date().toISOString().split("T")[0];
@@ -66,6 +68,8 @@ const initialState: WizardState = {
   ],
   extraFields: {},
   templateId: "classic",
+  senderSignature: "",
+  recipientSignature: "",
 };
 
 // ============================================

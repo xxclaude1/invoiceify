@@ -4,6 +4,21 @@ import { useWizard } from "./wizard-context";
 import { DOCUMENT_TYPE_CONFIGS, DocumentType } from "@/types";
 import { cn } from "@/lib/utils";
 
+// Each icon type gets its own color
+const ICON_STYLES: Record<string, { bg: string; text: string; selectedBg: string; selectedText: string }> = {
+  receipt:        { bg: "bg-teal-50",    text: "text-teal-600",    selectedBg: "bg-teal-100",    selectedText: "text-teal-700" },
+  "receipt-tax":  { bg: "bg-emerald-50", text: "text-emerald-600", selectedBg: "bg-emerald-100", selectedText: "text-emerald-700" },
+  document:       { bg: "bg-cyan-50",    text: "text-cyan-600",    selectedBg: "bg-cyan-100",    selectedText: "text-cyan-700" },
+  "check-receipt":{ bg: "bg-green-50",   text: "text-green-600",   selectedBg: "bg-green-100",   selectedText: "text-green-700" },
+  "shopping-bag": { bg: "bg-blue-50",    text: "text-blue-600",    selectedBg: "bg-blue-100",    selectedText: "text-blue-700" },
+  cash:           { bg: "bg-lime-50",    text: "text-lime-600",    selectedBg: "bg-lime-100",    selectedText: "text-lime-700" },
+  quote:          { bg: "bg-violet-50",  text: "text-violet-600",  selectedBg: "bg-violet-100",  selectedText: "text-violet-700" },
+  calculator:     { bg: "bg-amber-50",   text: "text-amber-600",   selectedBg: "bg-amber-100",   selectedText: "text-amber-700" },
+  credit:         { bg: "bg-rose-50",    text: "text-rose-600",    selectedBg: "bg-rose-100",    selectedText: "text-rose-700" },
+  cart:           { bg: "bg-indigo-50",  text: "text-indigo-600",  selectedBg: "bg-indigo-100",  selectedText: "text-indigo-700" },
+  truck:          { bg: "bg-orange-50",  text: "text-orange-600",  selectedBg: "bg-orange-100",  selectedText: "text-orange-700" },
+};
+
 const ICONS: Record<string, React.ReactNode> = {
   receipt: (
     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -74,6 +89,7 @@ export default function StepDocument() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {DOCUMENT_TYPE_CONFIGS.map((config) => {
           const selected = state.documentType === config.type;
+          const style = ICON_STYLES[config.icon] ?? ICON_STYLES.receipt;
           return (
             <button
               key={config.type}
@@ -94,8 +110,8 @@ export default function StepDocument() {
                 className={cn(
                   "w-11 h-11 rounded-lg flex items-center justify-center",
                   selected
-                    ? "bg-accent/10 text-accent"
-                    : "bg-primary/5 text-primary"
+                    ? `${style.selectedBg} ${style.selectedText}`
+                    : `${style.bg} ${style.text}`
                 )}
               >
                 {ICONS[config.icon] || ICONS.receipt}
